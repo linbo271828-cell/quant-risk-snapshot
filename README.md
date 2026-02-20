@@ -173,18 +173,29 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 
 ## Setup
 
-```bash
-# 1. Install dependencies
-npm install
+### Local development
 
-# 2. Run DB migrations (creates prisma/dev.db)
-npm run prisma:migrate -- --name init
+1. **Database** — The app uses **PostgreSQL** (required for Vercel; SQLite is not supported in serverless). Use a free [Neon](https://neon.tech) or [Vercel Postgres](https://vercel.com/storage/postgres) database, or local Postgres.
 
-# 3. Run development server (no API key needed)
-npm run dev
-```
+2. **Environment** — Create `.env` in the project root with:
+   ```env
+   DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+   ```
+   (Use the connection string from your Neon/Vercel Postgres dashboard.)
 
-Open [http://localhost:3000](http://localhost:3000).
+3. **Install and migrate**:
+   ```bash
+   npm install
+   npm run prisma:migrate
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000).
+
+### Deploy to Vercel
+
+1. In the Vercel project, add **Environment Variable** `DATABASE_URL` with your Postgres connection string (Neon or Vercel Postgres).
+2. Redeploy. The build runs `prisma generate`, `prisma migrate deploy`, then `next build`, so the production DB is migrated automatically.
+3. The `/portfolios` page will work at `https://your-app.vercel.app/portfolios` once `DATABASE_URL` is set.
 
 ---
 
@@ -203,7 +214,7 @@ app/
   api/prices/route.ts        # Server-side price API
   api/portfolios/...         # Portfolio monitor APIs
 prisma/
-  schema.prisma              # SQLite schema for portfolios/snapshots/alerts
+  schema.prisma              # PostgreSQL schema for portfolios/snapshots/alerts
 components/
   MetricCard.tsx             # Metric display card
   LineChartCard.tsx          # Recharts line chart wrapper
