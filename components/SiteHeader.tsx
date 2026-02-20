@@ -6,6 +6,7 @@ import { BarChart3 } from "lucide-react";
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
+  { href: "/portfolios", label: "Portfolios" },
   { href: "/", label: "Input" },
   { href: "/report", label: "Report" },
   { href: "/rebalance", label: "Rebalance" },

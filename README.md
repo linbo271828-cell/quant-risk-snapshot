@@ -13,6 +13,10 @@ Enter a portfolio (tickers + shares or weights), pull daily price history from Y
 | `/` | Portfolio input form (tickers, weights/shares, range, benchmark, shrinkage) |
 | `/report` | Risk snapshot dashboard with charts and exports |
 | `/rebalance` | Min-variance or risk-parity rebalancer with turnover slider |
+| `/portfolios` | Persistent portfolio monitor list (database-backed) |
+| `/portfolios/new` | Create saved portfolio with defaults |
+| `/portfolios/[id]` | Portfolio detail, run snapshot, history, alerts |
+| `/snapshots/[snapshotId]` | Snapshot report loaded from database |
 
 ---
 
@@ -50,6 +54,26 @@ Server-side route that fetches daily adjusted close prices from Yahoo Finance (f
 - In-memory cache with 6-hour TTL per `ticker:start:end` key.
 - Exponential backoff (up to 3 retries) on rate-limit / transient errors.
 - Uses Yahoo Finance (no API key required, adjusted close available).
+
+### Portfolio Monitor APIs
+
+#### Portfolios
+- `POST /api/portfolios` create a portfolio with holdings/defaults
+- `GET /api/portfolios` list all portfolios with derived summary fields
+- `GET /api/portfolios/:id` get detail, holdings, defaults, latest snapshot
+- `PATCH /api/portfolios/:id` update name/defaults/holdings
+- `DELETE /api/portfolios/:id` delete portfolio (cascade delete related records)
+
+#### Snapshots
+- `POST /api/portfolios/:id/snapshots` run server-side snapshot and persist results
+- `GET /api/portfolios/:id/snapshots` list snapshot history
+- `GET /api/snapshots/:snapshotId` full snapshot detail payload
+- `GET /api/snapshots/:snapshotId/export?fmt=json|csv` export endpoint
+
+#### Alerts (bonus)
+- `POST /api/portfolios/:id/alerts` create alert rule (`vol_gt`, `maxdd_lt`, `var_gt`)
+- `GET /api/portfolios/:id/alerts` list alert rules
+- `POST /api/portfolios/:id/alerts/check` evaluate rules against latest snapshot
 
 ---
 
@@ -153,7 +177,10 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 # 1. Install dependencies
 npm install
 
-# 2. Run development server (no API key needed)
+# 2. Run DB migrations (creates prisma/dev.db)
+npm run prisma:migrate -- --name init
+
+# 3. Run development server (no API key needed)
 npm run dev
 ```
 
@@ -168,8 +195,15 @@ app/
   page.tsx                   # Input form
   report/page.tsx            # Risk dashboard
   rebalance/page.tsx         # Rebalancer
+  portfolios/page.tsx        # Portfolio monitor list
+  portfolios/new/page.tsx    # Portfolio creation page
+  portfolios/[id]/page.tsx   # Portfolio detail + snapshot runner
+  snapshots/[snapshotId]/page.tsx # Stored snapshot report
   layout.tsx                 # Root layout with nav
   api/prices/route.ts        # Server-side price API
+  api/portfolios/...         # Portfolio monitor APIs
+prisma/
+  schema.prisma              # SQLite schema for portfolios/snapshots/alerts
 components/
   MetricCard.tsx             # Metric display card
   LineChartCard.tsx          # Recharts line chart wrapper
@@ -178,7 +212,9 @@ components/
 lib/
   math.ts                   # Returns, vol, drawdown, beta, cov, VaR/CVaR, RC
   marketData.ts              # Yahoo Finance fetch, cache, alignment
+  snapshot.ts                # Server-side snapshot computation engine
   rebalance.ts               # Min-var, risk parity, turnover, trades
+  db.ts                      # Prisma client singleton
   types.ts                   # Shared TypeScript types
 ```
 

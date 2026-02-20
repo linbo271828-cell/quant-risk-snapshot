@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Portfolio {
+  id                    String     @id @default(cuid())
+  name                  String
+  mode                  String
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  defaultsRange         String     @default("1y")
+  defaultsBenchmark     String     @default("SPY")
+  defaultsRiskFreeRate  Float      @default(0)
+  defaultsShrinkage     Boolean    @default(false)
+  holdings              Holding[]
+  snapshots             Snapshot[]
+  alertRules            AlertRule[]
+}
+
+model Holding {
+  id          String    @id @default(cuid())
+  portfolioId String
+  ticker      String
+  value       Float
+  createdAt   DateTime  @default(now())
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+}
+
+model Snapshot {
+  id             String    @id @default(cuid())
+  portfolioId    String
+  createdAt      DateTime  @default(now())
+  range          String
+  benchmark      String
+  riskFreeRate   Float
+  shrinkage      Boolean
+  metricsJson    Json
+  seriesJson     Json
+  riskJson       Json
+  holdingsJson   Json
+  portfolio      Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, createdAt])
+}
+
+model AlertRule {
+  id          String    @id @default(cuid())
+  portfolioId String
+  type        String
+  threshold   Float
+  createdAt   DateTime  @default(now())
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, type])
+}
