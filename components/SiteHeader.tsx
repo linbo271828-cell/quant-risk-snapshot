@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 
 export default function SiteHeader() {
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
@@ -45,24 +45,22 @@ export default function SiteHeader() {
               </Link>
             );
           })}
-          {status !== "loading" ? (
-            session ? (
-              <button
-                type="button"
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              >
-                Sign out
-              </button>
-            ) : (
-              <Link
-                href="/auth/signin?callbackUrl=/portfolios"
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              >
-                Sign in
-              </Link>
-            )
-          ) : null}
+          {session ? (
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              href="/auth/signin?callbackUrl=/portfolios"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              Sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>
