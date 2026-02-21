@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSession } from "../../../../../lib/auth";
 import { db } from "../../../../../lib/db";
 import { computeSnapshot, fetchAlignedCloses } from "../../../../../lib/snapshot";
 import type { SnapshotDefaults } from "../../../../../lib/types";
@@ -25,7 +26,15 @@ function mergedDefaults(
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const portfolioId = params.id;
+    const portfolio = await db.portfolio.findUnique({ where: { id: portfolioId }, select: { userId: true } });
+    if (!portfolio || portfolio.userId !== session.user.id) {
+      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    }
     const snapshots = await db.snapshot.findMany({
       where: { portfolioId },
       orderBy: { createdAt: "desc" },
@@ -52,6 +61,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const portfolioId = params.id;
     const override = (await request.json().catch(() => ({}))) as SnapshotOverrideBody;
     const portfolio = await db.portfolio.findUnique({
@@ -59,6 +72,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       include: { holdings: true },
     });
     if (!portfolio) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    if (portfolio.userId !== session.user.id) {
+      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    }
     if (portfolio.holdings.length === 0) {
       return NextResponse.json({ error: "Portfolio has no holdings." }, { status: 400 });
     }

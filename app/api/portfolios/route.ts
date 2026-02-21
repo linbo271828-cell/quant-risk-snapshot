@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSession } from "../../../lib/auth";
 import { db } from "../../../lib/db";
 import type { SnapshotDefaults } from "../../../lib/types";
 
@@ -32,7 +33,13 @@ function safeDefaults(raw?: Partial<SnapshotDefaults>): SnapshotDefaults {
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required to view portfolios." }, { status: 401 });
+    }
+    const userId = session.user.id;
     const portfolios = await db.portfolio.findMany({
+      where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
         holdings: true,
@@ -63,6 +70,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required to create a portfolio." }, { status: 401 });
+    }
+    const userId = session.user.id;
     const body = (await request.json()) as CreatePortfolioBody;
     const name = body.name?.trim();
     const mode = body.mode;
@@ -79,6 +91,7 @@ export async function POST(request: Request) {
 
     const created = await db.portfolio.create({
       data: {
+        userId,
         name,
         mode,
         defaultsRange: defaults.range,

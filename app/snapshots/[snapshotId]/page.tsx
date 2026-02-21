@@ -23,6 +23,10 @@ export default function SnapshotDetailPage({ params }: { params: { snapshotId: s
       try {
         const res = await fetch(`/api/snapshots/${snapshotId}`);
         const data = await res.json();
+        if (res.status === 401) {
+          window.location.href = "/auth/signin?callbackUrl=" + encodeURIComponent("/snapshots/" + snapshotId);
+          return;
+        }
         if (!res.ok) throw new Error(data?.error ?? "Failed to load snapshot.");
         setSnapshot(data as SnapshotDetail);
       } catch (err) {

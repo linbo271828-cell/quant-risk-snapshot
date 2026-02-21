@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
+import { getSession } from "../../../../../lib/auth";
 import { db } from "../../../../../lib/db";
 
 export async function GET(request: Request, { params }: { params: { snapshotId: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const snapshotId = params.snapshotId;
     const fmt = new URL(request.url).searchParams.get("fmt") ?? "json";
-    const s = await db.snapshot.findUnique({ where: { id: snapshotId } });
+    const s = await db.snapshot.findUnique({
+      where: { id: snapshotId },
+      include: { portfolio: { select: { userId: true } } },
+    });
     if (!s) return NextResponse.json({ error: "Snapshot not found." }, { status: 404 });
+    if (s.portfolio.userId !== session.user.id) {
+      return NextResponse.json({ error: "Snapshot not found." }, { status: 404 });
+    }
 
     const detail = {
       id: s.id,

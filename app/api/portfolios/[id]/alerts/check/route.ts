@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSession } from "../../../../../../lib/auth";
 import { db } from "../../../../../../lib/db";
 
 function toNumberOrNull(value: unknown): number | null {
@@ -7,7 +8,15 @@ function toNumberOrNull(value: unknown): number | null {
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const portfolioId = params.id;
+    const portfolio = await db.portfolio.findUnique({ where: { id: portfolioId }, select: { userId: true } });
+    if (!portfolio || portfolio.userId !== session.user.id) {
+      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    }
     const [rules, latest] = await Promise.all([
       db.alertRule.findMany({ where: { portfolioId }, orderBy: { createdAt: "desc" } }),
       db.snapshot.findFirst({

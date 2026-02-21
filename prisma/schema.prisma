@@ -9,6 +9,7 @@ datasource db {
 
 model Portfolio {
   id                    String     @id @default(cuid())
+  userId                String     // GitHub (or other provider) user id; portfolios are private per user
   name                  String
   mode                  String
   createdAt             DateTime   @default(now())
@@ -20,6 +21,8 @@ model Portfolio {
   holdings              Holding[]
   snapshots             Snapshot[]
   alertRules            AlertRule[]
+
+  @@index([userId])
 }
 
 model Holding {

@@ -17,6 +17,10 @@ export default function PortfoliosPage() {
     try {
       const res = await fetch("/api/portfolios");
       const data = await res.json();
+      if (res.status === 401) {
+        window.location.href = "/auth/signin?callbackUrl=" + encodeURIComponent("/portfolios");
+        return;
+      }
       if (!res.ok) throw new Error(data?.error ?? "Failed to load portfolios.");
       setRows(data as PortfolioListItem[]);
     } catch (err) {

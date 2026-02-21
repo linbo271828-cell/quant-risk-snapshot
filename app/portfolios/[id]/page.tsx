@@ -39,6 +39,10 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         fetch(`/api/portfolios/${id}/snapshots`),
         fetch(`/api/portfolios/${id}/alerts`),
       ]);
+      if (portfolioRes.status === 401 || snapshotsRes.status === 401 || alertsRes.status === 401) {
+        window.location.href = "/auth/signin?callbackUrl=" + encodeURIComponent("/portfolios/" + id);
+        return;
+      }
       const portfolioData = await portfolioRes.json();
       const snapshotsData = await snapshotsRes.json();
       const alertsData = await alertsRes.json();

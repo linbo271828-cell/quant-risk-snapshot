@@ -2,7 +2,30 @@
 
 A small, self-contained portfolio risk analytics web app built with **Next.js 14 (App Router) + TypeScript + Recharts**.
 
-Enter a portfolio (tickers + shares or weights), pull daily price history from Yahoo Finance (no API key needed), and get a professional risk report with optional rebalancing.
+Enter a portfolio (tickers + shares or weights), pull daily price history from Yahoo Finance (no API key needed), and get a professional risk report with optional rebalancing. Saved portfolios are **private per user**: you must sign in with GitHub, and you only see and manage your own portfolios.
+
+---
+
+## Assignment alignment
+
+This project was built to satisfy a backend-focused assignment (server-side logic, deployment, frontend integration, documentation). Here’s how it maps:
+
+- **Backend** — Implemented as Next.js API routes (App Router). The backend:
+  - **Accepts data and returns meaningful responses**: portfolio CRUD, snapshot creation, price fetching, alert rules; all return JSON.
+  - **Uses server-side logic**: authentication (NextAuth + GitHub), snapshot computation (returns, vol, drawdown, VaR, etc.), secure price fetching (no keys in the frontend), and persistence (PostgreSQL via Prisma).
+  - **Stores secrets in the environment**: `DATABASE_URL`, `NEXTAUTH_SECRET`, `GITHUB_ID`, `GITHUB_SECRET` are read from env only; no secrets in the repo or frontend.
+  - **Returns JSON** (or CSV for export) for the frontend to consume.
+- **Deployment** — Deployed to **Vercel** (not Render). The app gets a public URL (e.g. `https://quant-risk-snapshot.vercel.app`). Database is hosted PostgreSQL (e.g. Neon); migrations run on deploy.
+- **Frontend** — Next.js pages use `fetch()` to call the backend, render results (tables, charts, forms), and handle errors (e.g. 401 redirect to sign-in, 4xx/5xx messages).
+- **Documentation** — This README describes what the backend does, how to run locally, how the frontend calls it, and where secrets live.
+
+---
+
+## Privacy & authentication
+
+- **Portfolios are private.** Each portfolio is stored with a `userId` (your GitHub id). The API only lists, returns, updates, or deletes portfolios that belong to the currently signed-in user. No one else can see or change your portfolios.
+- **Sign in with GitHub** is required to use the Portfolios feature (`/portfolios`, `/portfolios/new`, `/portfolios/[id]`, `/snapshots/[snapshotId]`). Unauthenticated requests to those APIs return 401; the UI redirects to a sign-in page and back after auth.
+- The rest of the app (Input, Report, Rebalance) does not require sign-in and does not store user-specific data.
 
 ---
 
@@ -57,12 +80,14 @@ Server-side route that fetches daily adjusted close prices from Yahoo Finance (f
 
 ### Portfolio Monitor APIs
 
+**All of these require an authenticated session (sign in with GitHub).** Responses are scoped to the signed-in user’s portfolios only.
+
 #### Portfolios
-- `POST /api/portfolios` create a portfolio with holdings/defaults
-- `GET /api/portfolios` list all portfolios with derived summary fields
-- `GET /api/portfolios/:id` get detail, holdings, defaults, latest snapshot
-- `PATCH /api/portfolios/:id` update name/defaults/holdings
-- `DELETE /api/portfolios/:id` delete portfolio (cascade delete related records)
+- `POST /api/portfolios` create a portfolio with holdings/defaults (owned by current user)
+- `GET /api/portfolios` list the current user’s portfolios with derived summary fields
+- `GET /api/portfolios/:id` get detail, holdings, defaults, latest snapshot (404 if not owner)
+- `PATCH /api/portfolios/:id` update name/defaults/holdings (404 if not owner)
+- `DELETE /api/portfolios/:id` delete portfolio (404 if not owner; cascade deletes related records)
 
 #### Snapshots
 - `POST /api/portfolios/:id/snapshots` run server-side snapshot and persist results
@@ -173,15 +198,24 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 
 ## Setup
 
+**→ Step-by-step instructions:** See **[SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md)** for what you need to do (GitHub OAuth app, `.env` values, Vercel env vars). The sections below repeat the same in more detail.
+
 ### Local development
 
 1. **Database** — The app uses **PostgreSQL** (required for Vercel; SQLite is not supported in serverless). Use a free [Neon](https://neon.tech) or [Vercel Postgres](https://vercel.com/storage/postgres) database, or local Postgres.
 
-2. **Environment** — Create `.env` in the project root with:
+2. **Environment & secrets** — Create `.env` in the project root (do not commit this file). All secrets are read from the environment:
    ```env
    DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+   NEXTAUTH_SECRET="a-random-string-at-least-32-chars"
+   NEXTAUTH_URL="http://localhost:3000"
+   GITHUB_ID="your-github-oauth-app-client-id"
+   GITHUB_SECRET="your-github-oauth-app-client-secret"
    ```
-   (Use the connection string from your Neon/Vercel Postgres dashboard.)
+   - `DATABASE_URL`: from your Neon/Vercel Postgres dashboard.
+   - `NEXTAUTH_SECRET`: generate with `openssl rand -base64 32` or similar.
+   - `NEXTAUTH_URL`: use `http://localhost:3000` locally.
+   - GitHub OAuth: create a [GitHub OAuth App](https://github.com/settings/developers) (Authorization callback URL e.g. `http://localhost:3000/api/auth/callback/github` for local).
 
 3. **Install and migrate**:
    ```bash
@@ -189,13 +223,17 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
    npm run prisma:migrate
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000).
+   Open [http://localhost:3000](http://localhost:3000). Use “Sign in” to access Portfolios.
 
 ### Deploy to Vercel
 
-1. In the Vercel project, add **Environment Variable** `DATABASE_URL` with your Postgres connection string (Neon or Vercel Postgres).
+1. In the Vercel project, add **Environment Variables**:
+   - `DATABASE_URL` — Postgres connection string (Neon or Vercel Postgres).
+   - `NEXTAUTH_SECRET` — A strong random string (e.g. from `openssl rand -base64 32`).
+   - `NEXTAUTH_URL` — Your production URL, e.g. `https://quant-risk-snapshot.vercel.app`.
+   - `GITHUB_ID` and `GITHUB_SECRET` — From a GitHub OAuth App whose callback URL is `https://your-domain.vercel.app/api/auth/callback/github`.
 2. Redeploy. The build runs `prisma generate`, `prisma migrate deploy`, then `next build`, so the production DB is migrated automatically.
-3. The `/portfolios` page will work at `https://your-app.vercel.app/portfolios` once `DATABASE_URL` is set.
+3. The `/portfolios` page will work once the above env vars are set; users sign in with GitHub and see only their own portfolios.
 
 ---
 
@@ -211,8 +249,9 @@ app/
   portfolios/[id]/page.tsx   # Portfolio detail + snapshot runner
   snapshots/[snapshotId]/page.tsx # Stored snapshot report
   layout.tsx                 # Root layout with nav
+  api/auth/[...nextauth]/route.ts  # NextAuth (GitHub) sign-in
   api/prices/route.ts        # Server-side price API
-  api/portfolios/...         # Portfolio monitor APIs
+  api/portfolios/...         # Portfolio monitor APIs (auth required, scoped by user)
 prisma/
   schema.prisma              # PostgreSQL schema for portfolios/snapshots/alerts
 components/
@@ -225,6 +264,7 @@ lib/
   marketData.ts              # Yahoo Finance fetch, cache, alignment
   snapshot.ts                # Server-side snapshot computation engine
   rebalance.ts               # Min-var, risk parity, turnover, trades
+  auth.ts                    # NextAuth config and getSession()
   db.ts                      # Prisma client singleton
   types.ts                   # Shared TypeScript types
 ```
@@ -238,4 +278,3 @@ lib/
 - Live alerts / watchlist
 - Intraday data support
 - Portfolio backtesting with periodic rebalancing
-- Persistent storage (database) for saved portfolios

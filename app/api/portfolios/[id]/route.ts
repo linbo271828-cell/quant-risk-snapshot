@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSession } from "../../../../lib/auth";
 import { db } from "../../../../lib/db";
 import type { SnapshotDefaults } from "../../../../lib/types";
 
@@ -22,6 +23,10 @@ function validateHoldings(holdings: Array<{ ticker: string; value: number }>): s
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const id = params.id;
     const p = await db.portfolio.findUnique({
       where: { id },
@@ -31,6 +36,9 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       },
     });
     if (!p) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    if (p.userId !== session.user.id) {
+      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    }
 
     const latest = p.snapshots[0] ?? null;
     const metrics = latest?.metricsJson as Record<string, unknown> | undefined;
@@ -69,6 +77,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const id = params.id;
     const body = (await request.json()) as PatchPortfolioBody;
     const updateData: Record<string, unknown> = {};
@@ -88,6 +100,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     await db.$transaction(async (tx) => {
       const exists = await tx.portfolio.findUnique({ where: { id } });
       if (!exists) throw new Error("Portfolio not found.");
+      if (exists.userId !== session.user.id) throw new Error("Portfolio not found.");
       await tx.portfolio.update({ where: { id }, data: updateData });
 
       if (body.holdings != null) {
@@ -114,7 +127,16 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
 export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    }
     const id = params.id;
+    const p = await db.portfolio.findUnique({ where: { id } });
+    if (!p) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    if (p.userId !== session.user.id) {
+      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+    }
     await db.portfolio.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -58,6 +58,10 @@ export default function NewPortfolioPage() {
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        window.location.href = "/auth/signin?callbackUrl=" + encodeURIComponent("/portfolios/new");
+        return;
+      }
       if (!res.ok) throw new Error(data?.error ?? "Failed to create portfolio.");
       router.push(`/portfolios/${data.portfolioId as string}`);
     } catch (err) {

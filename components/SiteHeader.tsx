@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { BarChart3 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { useSession } from "next-auth/react";
 
 const NAV_ITEMS = [
   { href: "/portfolios", label: "Portfolios" },
@@ -14,6 +16,7 @@ const NAV_ITEMS = [
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
@@ -42,6 +45,24 @@ export default function SiteHeader() {
               </Link>
             );
           })}
+          {status !== "loading" ? (
+            session ? (
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              >
+                Sign out
+              </button>
+            ) : (
+              <Link
+                href="/auth/signin?callbackUrl=/portfolios"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              >
+                Sign in
+              </Link>
+            )
+          ) : null}
         </nav>
       </div>
     </header>
