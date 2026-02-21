@@ -38,9 +38,6 @@ function SignInForm() {
     setError("");
     try {
       const normalizedUsername = username.trim().toLowerCase();
-      // #region agent log
-      fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signin-flow",hypothesisId:"H1",location:"app/auth/signin/page.tsx:onSubmit:start",message:"Auth submit started",data:{mode,usernameLength:normalizedUsername.length,passwordLength:password.length,canSubmit},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (mode === "signup") {
         const signupRes = await fetch("/api/auth/signup", {
           method: "POST",
@@ -48,9 +45,6 @@ function SignInForm() {
           body: JSON.stringify({ username: normalizedUsername, password }),
         });
         const signupData = await signupRes.json();
-        // #region agent log
-        fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signin-flow",hypothesisId:"H2",location:"app/auth/signin/page.tsx:onSubmit:signupResponse",message:"Signup API response",data:{status:signupRes.status,ok:signupRes.ok,hasError:Boolean(signupData?.error)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!signupRes.ok) throw new Error(signupData?.error ?? "Failed to create account.");
       }
 
@@ -60,15 +54,9 @@ function SignInForm() {
         password,
         callbackUrl,
       });
-      // #region agent log
-      fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signin-flow",hypothesisId:"H3",location:"app/auth/signin/page.tsx:onSubmit:signInResult",message:"Credentials signIn result",data:{hasResult:Boolean(result),hasError:Boolean(result?.error),ok:result?.ok ?? null,status:result?.status ?? null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (result?.error) throw new Error("Invalid username or password.");
       window.location.href = callbackUrl;
     } catch (err) {
-      // #region agent log
-      fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signin-flow",hypothesisId:"H4",location:"app/auth/signin/page.tsx:onSubmit:catch",message:"Auth submit failed",data:{errorMessage:err instanceof Error ? err.message : "unknown"},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       setError(err instanceof Error ? err.message : "Authentication failed.");
     } finally {
       setLoading(false);

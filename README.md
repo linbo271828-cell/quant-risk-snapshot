@@ -196,52 +196,6 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 
 ---
 
-## Setup
-
-**→ Step-by-step instructions:** See **[SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md)** for what you need to do (`.env` values, Vercel env vars, optional OAuth setup). The sections below repeat the same in more detail.
-
-### Local development
-
-1. **Database** — The app uses **PostgreSQL** (required for Vercel; SQLite is not supported in serverless). Use a free [Neon](https://neon.tech) or [Vercel Postgres](https://vercel.com/storage/postgres) database, or local Postgres.
-
-2. **Environment & secrets** — Create `.env` in the project root (do not commit this file). All secrets are read from the environment:
-   ```env
-   DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
-   NEXTAUTH_SECRET="a-random-string-at-least-32-chars"
-   NEXTAUTH_URL="http://localhost:3000"
-   GITHUB_ID="your-github-oauth-app-client-id"
-   GITHUB_SECRET="your-github-oauth-app-client-secret"
-   ```
-   - `DATABASE_URL`: from your Neon/Vercel Postgres dashboard.
-   - `NEXTAUTH_SECRET`: generate with `openssl rand -base64 32` or similar.
-   - `NEXTAUTH_URL`: use `http://localhost:3000` locally.
-   - GitHub OAuth: create a [GitHub OAuth App](https://github.com/settings/developers) (Authorization callback URL e.g. `http://localhost:3000/api/auth/callback/github` for local).
-
-3. **Install and migrate**:
-   ```bash
-   npm install
-   npm run prisma:migrate
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000). Use “Sign in” to access Portfolios.
-
-### Deploy to Vercel
-
-1. In the Vercel project, add **Environment Variables**:
-   - `DATABASE_URL` — Postgres connection string (Neon or Vercel Postgres).
-   - `NEXTAUTH_SECRET` — A strong random string (e.g. from `openssl rand -base64 32`).
-   - `NEXTAUTH_URL` — Your production URL, e.g. `https://quant-risk-snapshot.vercel.app`.
-   - `GITHUB_ID` and `GITHUB_SECRET` — Optional, for GitHub login.
-   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — Optional, for Google login.
-2. Redeploy. The build runs `prisma generate` and `next build` (no DB migration during build).
-3. Run migrations separately when needed:
-   ```bash
-   npm run prisma:migrate:deploy
-   ```
-4. The `/portfolios` page will work once `DATABASE_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL` are set. Users sign in with username/password (or optional OAuth providers) and see only their own portfolios.
-
----
-
 ## Project Structure
 
 ```

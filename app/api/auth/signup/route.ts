@@ -27,9 +27,6 @@ export async function POST(request: Request) {
     const body = (await request.json()) as SignUpBody;
     const username = validateUsername(body.username ?? "");
     const password = body.password ?? "";
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signup-api",hypothesisId:"H2",location:"app/api/auth/signup/route.ts:POST:input",message:"Signup request parsed",data:{usernameValid:Boolean(username),passwordLength:password.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     if (!username) {
       return NextResponse.json(
@@ -41,28 +38,16 @@ export async function POST(request: Request) {
     if (passwordError) return NextResponse.json({ error: passwordError }, { status: 400 });
 
     const existing = await db.user.findUnique({ where: { username } });
-    if (existing) {
-      // #region agent log
-      fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signup-api",hypothesisId:"H2",location:"app/api/auth/signup/route.ts:POST:existing",message:"Signup blocked by duplicate username",data:{duplicate:true},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-      return NextResponse.json({ error: "Username already exists." }, { status: 409 });
-    }
+    if (existing) return NextResponse.json({ error: "Username already exists." }, { status: 409 });
 
     const passwordHash = await hash(password, 12);
     const user = await db.user.create({
       data: { username, passwordHash },
       select: { id: true, username: true },
     });
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signup-api",hypothesisId:"H2",location:"app/api/auth/signup/route.ts:POST:created",message:"User created successfully",data:{created:true,userIdLength:user.id.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-
     return NextResponse.json({ ok: true, user }, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/540f29d3-b53c-4854-a947-0acc20fc668e",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({runId:"signup-api",hypothesisId:"H5",location:"app/api/auth/signup/route.ts:POST:catch",message:"Signup route threw error",data:{errorMessage:msg},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
