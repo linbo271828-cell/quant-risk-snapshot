@@ -2,7 +2,7 @@
 
 A small, self-contained portfolio risk analytics web app built with **Next.js 14 (App Router) + TypeScript + Recharts**.
 
-Enter a portfolio (tickers + shares or weights), pull daily price history from Yahoo Finance (no API key needed), and get a professional risk report with optional rebalancing. Saved portfolios are **private per user**: you must sign in with GitHub, and you only see and manage your own portfolios.
+Enter a portfolio (tickers + shares or weights), pull daily price history from Yahoo Finance (no API key needed), and get a professional risk report with optional rebalancing. Saved portfolios are **private per user**: sign in with username/password (built-in), and optionally with GitHub/Google if configured.
 
 ---
 
@@ -24,7 +24,7 @@ This project was built to satisfy a backend-focused assignment (server-side logi
 ## Privacy & authentication
 
 - **Portfolios are private.** Each portfolio is stored with a `userId` (your GitHub id). The API only lists, returns, updates, or deletes portfolios that belong to the currently signed-in user. No one else can see or change your portfolios.
-- **Sign in with GitHub** is required to use the Portfolios feature (`/portfolios`, `/portfolios/new`, `/portfolios/[id]`, `/snapshots/[snapshotId]`). Unauthenticated requests to those APIs return 401; the UI redirects to a sign-in page and back after auth.
+- **Sign in is required** to use the Portfolios feature (`/portfolios`, `/portfolios/new`, `/portfolios/[id]`, `/snapshots/[snapshotId]`). Username/password is always available; GitHub/Google are optional providers. Unauthenticated requests to those APIs return 401; the UI redirects to a sign-in page and back after auth.
 - The rest of the app (Input, Report, Rebalance) does not require sign-in and does not store user-specific data.
 
 ---
@@ -198,7 +198,7 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 
 ## Setup
 
-**→ Step-by-step instructions:** See **[SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md)** for what you need to do (GitHub OAuth app, `.env` values, Vercel env vars). The sections below repeat the same in more detail.
+**→ Step-by-step instructions:** See **[SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md)** for what you need to do (`.env` values, Vercel env vars, optional OAuth setup). The sections below repeat the same in more detail.
 
 ### Local development
 
@@ -209,13 +209,17 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
    DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
    NEXTAUTH_SECRET="a-random-string-at-least-32-chars"
    NEXTAUTH_URL="http://localhost:3000"
+   # Optional OAuth providers (sign-in works without these)
    GITHUB_ID="your-github-oauth-app-client-id"
    GITHUB_SECRET="your-github-oauth-app-client-secret"
+   GOOGLE_CLIENT_ID="your-google-oauth-client-id"
+   GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
    ```
    - `DATABASE_URL`: from your Neon/Vercel Postgres dashboard.
    - `NEXTAUTH_SECRET`: generate with `openssl rand -base64 32` or similar.
    - `NEXTAUTH_URL`: use `http://localhost:3000` locally.
-   - GitHub OAuth: create a [GitHub OAuth App](https://github.com/settings/developers) (Authorization callback URL e.g. `http://localhost:3000/api/auth/callback/github` for local).
+   - Username/password sign-in requires only the first three variables above.
+   - GitHub/Google login is optional and requires OAuth app setup.
 
 3. **Install and migrate**:
    ```bash
@@ -231,9 +235,10 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
    - `DATABASE_URL` — Postgres connection string (Neon or Vercel Postgres).
    - `NEXTAUTH_SECRET` — A strong random string (e.g. from `openssl rand -base64 32`).
    - `NEXTAUTH_URL` — Your production URL, e.g. `https://quant-risk-snapshot.vercel.app`.
-   - `GITHUB_ID` and `GITHUB_SECRET` — From a GitHub OAuth App whose callback URL is `https://your-domain.vercel.app/api/auth/callback/github`.
+   - `GITHUB_ID` and `GITHUB_SECRET` — Optional, for GitHub login.
+   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — Optional, for Google login.
 2. Redeploy. The build runs `prisma generate`, `prisma migrate deploy`, then `next build`, so the production DB is migrated automatically.
-3. The `/portfolios` page will work once the above env vars are set; users sign in with GitHub and see only their own portfolios.
+3. The `/portfolios` page will work once `DATABASE_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL` are set. Users sign in with username/password (or optional OAuth providers) and see only their own portfolios.
 
 ---
 
@@ -249,7 +254,8 @@ app/
   portfolios/[id]/page.tsx   # Portfolio detail + snapshot runner
   snapshots/[snapshotId]/page.tsx # Stored snapshot report
   layout.tsx                 # Root layout with nav
-  api/auth/[...nextauth]/route.ts  # NextAuth (GitHub) sign-in
+  api/auth/[...nextauth]/route.ts  # NextAuth session providers
+  api/auth/signup/route.ts         # Username/password sign-up endpoint
   api/prices/route.ts        # Server-side price API
   api/portfolios/...         # Portfolio monitor APIs (auth required, scoped by user)
 prisma/
