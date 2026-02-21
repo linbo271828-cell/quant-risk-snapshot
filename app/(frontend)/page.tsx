@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, HelpCircle, Info, Loader2, Sparkles } from "lucide-react";
-import { cn } from "../lib/utils";
-import type { HoldingsInput, HoldingsItem } from "../lib/types";
+import { cn } from "../../lib/utils";
+import type { HoldingsInput, HoldingsItem } from "../../lib/types";
 
 const STORAGE_KEY = "quant-risk-input";
 

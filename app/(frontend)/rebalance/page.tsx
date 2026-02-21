@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronDown, ChevronUp, Download } from "lucide-react";
-import MetricCard from "../../components/MetricCard";
+import MetricCard from "../../../components/MetricCard";
 import {
   computeReturns,
   covarianceMatrix,
   normalizeWeights,
   shrinkCovariance,
-} from "../../lib/math";
+} from "../../../lib/math";
 import {
   blendWeights,
   computeTrades,
@@ -17,9 +17,9 @@ import {
   minVarianceWeights,
   portfolioVol,
   riskParityWeights,
-} from "../../lib/rebalance";
-import { cn } from "../../lib/utils";
-import type { HoldingsInput, PricesResponse, RebalanceObjective, ReturnsByTicker } from "../../lib/types";
+} from "../../../lib/rebalance";
+import { cn } from "../../../lib/utils";
+import type { HoldingsInput, PricesResponse, RebalanceObjective, ReturnsByTicker } from "../../../lib/types";
 
 const STORAGE_KEY = "quant-risk-input";
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;

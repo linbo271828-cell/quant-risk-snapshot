@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { HoldingsItem } from "../../../lib/types";
+import type { HoldingsItem } from "../../../../lib/types";
 
 const TICKER_RE = /^[A-Z.\-]{1,12}$/;
 

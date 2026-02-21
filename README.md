@@ -198,36 +198,36 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 
 ## Project Structure
 
-```
-app/
-  page.tsx                   # Input form
-  report/page.tsx            # Risk dashboard
-  rebalance/page.tsx         # Rebalancer
-  portfolios/page.tsx        # Portfolio monitor list
-  portfolios/new/page.tsx    # Portfolio creation page
-  portfolios/[id]/page.tsx   # Portfolio detail + snapshot runner
-  snapshots/[snapshotId]/page.tsx # Stored snapshot report
-  layout.tsx                 # Root layout with nav
-  api/auth/[...nextauth]/route.ts  # NextAuth session providers
-  api/auth/signup/route.ts         # Username/password sign-up endpoint
-  api/prices/route.ts        # Server-side price API
-  api/portfolios/...         # Portfolio monitor APIs (auth required, scoped by user)
-prisma/
-  schema.prisma              # PostgreSQL schema for portfolios/snapshots/alerts
-components/
-  MetricCard.tsx             # Metric display card
-  LineChartCard.tsx          # Recharts line chart wrapper
-  BarChartCard.tsx           # Recharts bar chart wrapper
-  CorrHeatmap.tsx            # Color-coded correlation heatmap
-lib/
-  math.ts                   # Returns, vol, drawdown, beta, cov, VaR/CVaR, RC
-  marketData.ts              # Yahoo Finance fetch, cache, alignment
-  snapshot.ts                # Server-side snapshot computation engine
-  rebalance.ts               # Min-var, risk parity, turnover, trades
-  auth.ts                    # NextAuth config and getSession()
-  db.ts                      # Prisma client singleton
-  types.ts                   # Shared TypeScript types
-```
+The codebase is organized so **frontend** (pages, UI) and **backend** (API routes) are clearly separated.
+
+### Frontend (UI and pages)
+
+- **`app/(frontend)/`** — All user-facing routes (Next.js route group; URLs are unchanged).
+  - `page.tsx` → `/` (input form)
+  - `report/page.tsx` → `/report` (risk dashboard)
+  - `rebalance/page.tsx` → `/rebalance` (rebalancer)
+  - `portfolios/page.tsx` → `/portfolios` (portfolio list)
+  - `portfolios/new/page.tsx` → `/portfolios/new`
+  - `portfolios/[id]/page.tsx` → `/portfolios/[id]` (detail + snapshot runner)
+  - `snapshots/[snapshotId]/page.tsx` → `/snapshots/[snapshotId]` (stored snapshot report)
+  - `auth/signin/page.tsx` → `/auth/signin`
+- **`app/layout.tsx`** — Root layout (nav, session provider, global styles).
+- **`components/`** — Reusable UI: `MetricCard`, `LineChartCard`, `BarChartCard`, `CorrHeatmap`, `SiteHeader`, `SessionProvider`.
+
+### Backend (API and server logic)
+
+- **`app/api/`** — All API routes (backend).
+  - `auth/[...nextauth]/route.ts` — NextAuth session providers
+  - `auth/signup/route.ts` — Username/password sign-up
+  - `prices/route.ts` — Server-side price API (Yahoo Finance)
+  - `portfolios/route.ts`, `portfolios/[id]/route.ts` — Portfolio CRUD
+  - `portfolios/[id]/snapshots/route.ts` — Run/list snapshots
+  - `portfolios/[id]/alerts/route.ts`, `portfolios/[id]/alerts/check/route.ts` — Alert rules
+  - `snapshots/[snapshotId]/route.ts`, `snapshots/[snapshotId]/export/route.ts` — Snapshot detail and export
+- **`lib/`** — Shared and server-side logic:
+  - **Used by API:** `auth.ts`, `db.ts`, `marketData.ts`, `snapshot.ts`
+  - **Shared (UI + API):** `math.ts`, `rebalance.ts`, `types.ts`, `utils.ts`
+- **`prisma/`** — `schema.prisma` and migrations (PostgreSQL).
 
 ---
 

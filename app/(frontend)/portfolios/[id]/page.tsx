@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { AlertRule, PortfolioDetail, SnapshotSummary } from "../../../lib/types";
-import MetricCard from "../../../components/MetricCard";
+import type { AlertRule, PortfolioDetail, SnapshotSummary } from "../../../../lib/types";
+import MetricCard from "../../../../components/MetricCard";
 
 type SnapshotConfig = {
   range: string;

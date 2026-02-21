@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { PortfolioListItem } from "../../lib/types";
+import type { PortfolioListItem } from "../../../lib/types";
 
 const pct = (v: number | null) => (v == null ? "-" : `${(v * 100).toFixed(2)}%`);
 

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import BarChartCard from "../../../components/BarChartCard";
-import CorrHeatmap from "../../../components/CorrHeatmap";
-import LineChartCard from "../../../components/LineChartCard";
-import MetricCard from "../../../components/MetricCard";
-import type { SnapshotDetail } from "../../../lib/types";
+import BarChartCard from "../../../../components/BarChartCard";
+import CorrHeatmap from "../../../../components/CorrHeatmap";
+import LineChartCard from "../../../../components/LineChartCard";
+import MetricCard from "../../../../components/MetricCard";
+import type { SnapshotDetail } from "../../../../lib/types";
 
 const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
 

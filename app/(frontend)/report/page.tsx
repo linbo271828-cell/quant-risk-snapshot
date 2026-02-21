@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Download, FileJson } from "lucide-react";
-import BarChartCard from "../../components/BarChartCard";
-import CorrHeatmap from "../../components/CorrHeatmap";
-import LineChartCard from "../../components/LineChartCard";
-import MetricCard from "../../components/MetricCard";
+import BarChartCard from "../../../components/BarChartCard";
+import CorrHeatmap from "../../../components/CorrHeatmap";
+import LineChartCard from "../../../components/LineChartCard";
+import MetricCard from "../../../components/MetricCard";
 import {
   annualizedReturn,
   annualizedVolatility,
@@ -27,8 +27,8 @@ import {
   shrinkCovariance,
   totalReturn,
   varCvar,
-} from "../../lib/math";
-import type { HoldingsInput, PricesResponse, ReturnsByTicker } from "../../lib/types";
+} from "../../../lib/math";
+import type { HoldingsInput, PricesResponse, ReturnsByTicker } from "../../../lib/types";
 
 const STORAGE_KEY = "quant-risk-input";
 
