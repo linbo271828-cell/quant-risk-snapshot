@@ -209,17 +209,13 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
    DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
    NEXTAUTH_SECRET="a-random-string-at-least-32-chars"
    NEXTAUTH_URL="http://localhost:3000"
-   # Optional OAuth providers (sign-in works without these)
    GITHUB_ID="your-github-oauth-app-client-id"
    GITHUB_SECRET="your-github-oauth-app-client-secret"
-   GOOGLE_CLIENT_ID="your-google-oauth-client-id"
-   GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
    ```
    - `DATABASE_URL`: from your Neon/Vercel Postgres dashboard.
    - `NEXTAUTH_SECRET`: generate with `openssl rand -base64 32` or similar.
    - `NEXTAUTH_URL`: use `http://localhost:3000` locally.
-   - Username/password sign-in requires only the first three variables above.
-   - GitHub/Google login is optional and requires OAuth app setup.
+   - GitHub OAuth: create a [GitHub OAuth App](https://github.com/settings/developers) (Authorization callback URL e.g. `http://localhost:3000/api/auth/callback/github` for local).
 
 3. **Install and migrate**:
    ```bash
@@ -237,8 +233,12 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
    - `NEXTAUTH_URL` — Your production URL, e.g. `https://quant-risk-snapshot.vercel.app`.
    - `GITHUB_ID` and `GITHUB_SECRET` — Optional, for GitHub login.
    - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` — Optional, for Google login.
-2. Redeploy. The build runs `prisma generate`, `prisma migrate deploy`, then `next build`, so the production DB is migrated automatically.
-3. The `/portfolios` page will work once `DATABASE_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL` are set. Users sign in with username/password (or optional OAuth providers) and see only their own portfolios.
+2. Redeploy. The build runs `prisma generate` and `next build` (no DB migration during build).
+3. Run migrations separately when needed:
+   ```bash
+   npm run prisma:migrate:deploy
+   ```
+4. The `/portfolios` page will work once `DATABASE_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL` are set. Users sign in with username/password (or optional OAuth providers) and see only their own portfolios.
 
 ---
 
