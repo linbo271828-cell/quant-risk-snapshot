@@ -104,10 +104,10 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       if (!portfolioRes.ok) throw new Error(portfolioData?.error ?? "Failed to load portfolio.");
       setPortfolio(portfolioData as PortfolioDetail);
       setConfig((portfolioData as PortfolioDetail).defaults);
-      setHistory((snapshotsData as SnapshotSummary[]) ?? []);
-      setAlerts((alertsData as AlertRule[]) ?? []);
-      setDetectiveReports((detectiveData as DetectiveReportSummary[]) ?? []);
-      setBacktests((backtestsData as BacktestRunSummary[]) ?? []);
+      setHistory(snapshotsRes.ok && Array.isArray(snapshotsData) ? (snapshotsData as SnapshotSummary[]) : []);
+      setAlerts(alertsRes.ok && Array.isArray(alertsData) ? (alertsData as AlertRule[]) : []);
+      setDetectiveReports(detectiveRes.ok && Array.isArray(detectiveData) ? (detectiveData as DetectiveReportSummary[]) : []);
+      setBacktests(backtestsRes.ok && Array.isArray(backtestsData) ? (backtestsData as BacktestRunSummary[]) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load portfolio.");
     } finally {
