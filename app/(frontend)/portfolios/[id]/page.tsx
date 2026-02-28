@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { usePortfolioDetailData } from "./hooks/usePortfolioDetailData";
 import MetricCard from "../../../../components/MetricCard";
 import NextStepsPanel from "../../../../components/NextStepsPanel";
@@ -41,7 +43,16 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
     runDetective,
     runBacktest,
     checkAlerts,
+    renamePortfolio,
+    deletePortfolio,
+    savingRename,
+    deleting,
   } = usePortfolioDetailData(id);
+
+  const router = useRouter();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (loading) return <div className="text-sm text-slate-500">Loading...</div>;
   if (!portfolio) return <div className="text-sm text-red-700">Portfolio not found.</div>;
@@ -54,24 +65,121 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
     hasBacktests: backtests.length > 0,
   });
 
+  async function handleDeleteConfirm() {
+    const ok = await deletePortfolio();
+    if (ok) router.push("/portfolios");
+  }
+
+  function startEditingName() {
+    setEditNameValue(portfolio.name);
+    setIsEditingName(true);
+  }
+
+  function cancelEditingName() {
+    setIsEditingName(false);
+    setEditNameValue("");
+  }
+
+  function saveRename() {
+    if (editNameValue.trim() && editNameValue.trim() !== portfolio.name) {
+      renamePortfolio(editNameValue.trim());
+    }
+    setIsEditingName(false);
+    setEditNameValue("");
+  }
+
   return (
     <main className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{portfolio.name}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {isEditingName ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={editNameValue}
+                onChange={(e) => setEditNameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveRename();
+                  if (e.key === "Escape") cancelEditingName();
+                }}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xl font-bold text-slate-900"
+                placeholder="Portfolio name"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={saveRename}
+                disabled={savingRename || !editNameValue.trim()}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white disabled:bg-slate-300"
+              >
+                {savingRename ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditingName}
+                disabled={savingRename}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">{portfolio.name}</h1>
+              <button
+                type="button"
+                onClick={startEditingName}
+                className="text-sm font-medium text-slate-500 underline hover:text-slate-700"
+              >
+                Rename
+              </button>
+            </div>
+          )}
           <p className="mt-1 text-sm text-slate-500">
             Mode: {portfolio.mode} • Created: {new Date(portfolio.createdAt).toLocaleString()}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link href="/assistant" className="text-sm font-medium text-blue-600 hover:underline">
             Guided assistant
           </Link>
           <Link href="/portfolios" className="text-sm font-medium text-blue-600 hover:underline">
             Back to portfolios
           </Link>
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleting}
+            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            {deleting ? "Deleting..." : "Delete portfolio"}
+          </button>
         </div>
       </div>
+
+      {showDeleteConfirm ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-900">Delete this portfolio? This cannot be undone. All snapshots, reports, and backtests for this portfolio will be removed.</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-slate-300"
+            >
+              {deleting ? "Deleting..." : "Yes, delete"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {latest ? (
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">

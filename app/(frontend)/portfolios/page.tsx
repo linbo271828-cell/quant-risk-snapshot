@@ -12,6 +12,8 @@ export default function PortfoliosPage() {
   const [rows, setRows] = useState<PortfolioListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -35,6 +37,22 @@ export default function PortfoliosPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/portfolios/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Failed to delete.");
+      setConfirmDeleteId(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete portfolio.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <main>
@@ -71,6 +89,7 @@ export default function PortfoliosPage() {
                 <th className="px-4 py-3 text-left text-slate-500">Holdings</th>
                 <th className="px-4 py-3 text-left text-slate-500">Last Snapshot</th>
                 <th className="px-4 py-3 text-left text-slate-500">Last Vol</th>
+                <th className="px-4 py-3 text-right text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -87,11 +106,41 @@ export default function PortfoliosPage() {
                     {r.lastSnapshotAt ? new Date(r.lastSnapshotAt).toLocaleString() : "-"}
                   </td>
                   <td className="px-4 py-3">{pct(r.lastVolAnn)}</td>
+                  <td className="px-4 py-3 text-right">
+                    {confirmDeleteId === r.id ? (
+                      <span className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(r.id)}
+                          disabled={deletingId === r.id}
+                          className="text-sm font-medium text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          {deletingId === r.id ? "Deleting..." : "Confirm"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          disabled={deletingId === r.id}
+                          className="text-sm font-medium text-slate-600 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(r.id)}
+                        className="text-sm font-medium text-slate-500 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6">
+                  <td colSpan={6} className="px-4 py-6">
                     <EmptyStateCard
                       title="No portfolios yet"
                       description="Create your first portfolio to unlock snapshots, detective reports, and backtests."

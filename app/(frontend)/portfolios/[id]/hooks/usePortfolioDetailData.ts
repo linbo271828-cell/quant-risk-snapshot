@@ -72,6 +72,8 @@ export function usePortfolioDetailData(id: string) {
   const [syncingEvents, setSyncingEvents] = useState(false);
   const [runningDetective, setRunningDetective] = useState(false);
   const [runningBacktest, setRunningBacktest] = useState(false);
+  const [savingRename, setSavingRename] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -255,6 +257,46 @@ export function usePortfolioDetailData(id: string) {
     }
   }
 
+  const renamePortfolio = useCallback(
+    async (newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+      setSavingRename(true);
+      setError("");
+      try {
+        const res = await fetch(`/api/portfolios/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error ?? "Failed to rename.");
+        await load();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to rename.");
+      } finally {
+        setSavingRename(false);
+      }
+    },
+    [id, load],
+  );
+
+  const deletePortfolio = useCallback(async (): Promise<boolean> => {
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/portfolios/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Failed to delete portfolio.");
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete portfolio.");
+      return false;
+    } finally {
+      setDeleting(false);
+    }
+  }, [id]);
+
   return {
     portfolio,
     history,
@@ -285,5 +327,9 @@ export function usePortfolioDetailData(id: string) {
     runDetective,
     runBacktest,
     checkAlerts,
+    renamePortfolio,
+    deletePortfolio,
+    savingRename,
+    deleting,
   };
 }
