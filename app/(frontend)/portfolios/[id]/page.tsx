@@ -226,44 +226,61 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Run Snapshot</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
-          <select
-            value={config.range}
-            onChange={(e) => setConfig((c) => ({ ...c, range: e.target.value }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-          >
-            <option value="3m">3m</option>
-            <option value="6m">6m</option>
-            <option value="1y">1y</option>
-            <option value="3y">3y</option>
-          </select>
-          <input
-            value={config.benchmark}
-            onChange={(e) => setConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Benchmark"
-          />
-          <input
-            value={String(config.riskFreeRate)}
-            onChange={(e) => setConfig((c) => ({ ...c, riskFreeRate: Number(e.target.value) || 0 }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="RF"
-          />
-          <label className="flex items-center gap-2 text-sm">
+        <p className="mt-1 text-xs text-slate-500">
+          Compute risk metrics (volatility, drawdown, beta) for this portfolio over a chosen period.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Lookback period</label>
+            <select
+              value={config.range}
+              onChange={(e) => setConfig((c) => ({ ...c, range: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              title="How far back to pull daily price history"
+            >
+              <option value="3m">3 months</option>
+              <option value="6m">6 months</option>
+              <option value="1y">1 year</option>
+              <option value="3y">3 years</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">How far back to pull price history. Longer = more data, more stable estimates.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Benchmark ticker</label>
             <input
-              type="checkbox"
-              checked={config.shrinkage}
-              onChange={(e) => setConfig((c) => ({ ...c, shrinkage: e.target.checked }))}
+              value={config.benchmark}
+              onChange={(e) => setConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              placeholder="e.g. SPY"
+              title="Index or ETF to compare your portfolio against"
             />
-            Shrinkage
-          </label>
+            <p className="mt-1 text-xs text-slate-500">Compare against this index (e.g. SPY = S&amp;P 500). Used for beta and relative performance.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Risk-free rate (annual)</label>
+            <input
+              value={String(config.riskFreeRate)}
+              onChange={(e) => setConfig((c) => ({ ...c, riskFreeRate: Number(e.target.value) || 0 }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              placeholder="0 or 0.05"
+              title="Used in Sharpe ratio calculation"
+            />
+            <p className="mt-1 text-xs text-slate-500">Decimal form (e.g. 0.05 = 5%). Used for Sharpe ratio. Use 0 if unsure.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Covariance shrinkage</label>
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={config.shrinkage}
+                onChange={(e) => setConfig((c) => ({ ...c, shrinkage: e.target.checked }))}
+                className="rounded border-slate-300"
+              />
+              <span>Shrinkage</span>
+            </label>
+            <p className="mt-1 text-xs text-slate-500">Stabilize correlation estimates when you have few holdings or short history. Often improves results.</p>
+          </div>
         </div>
-        {uxMode === "guided" ? (
-          <p className="mt-2 text-xs text-slate-500">
-            <strong>Benchmark tip:</strong> SPY is an ETF that tracks the S&amp;P 500 (broad US market) and is a good
-            default comparison for beta and relative performance.
-          </p>
-        ) : null}
         <button
           onClick={runSnapshot}
           disabled={running}
@@ -312,50 +329,65 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Detective</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
-          <input
-            type="date"
-            value={detectiveConfig.analyzeDate}
-            onChange={(e) => setDetectiveConfig((c) => ({ ...c, analyzeDate: e.target.value }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-          />
-          <input
-            value={detectiveConfig.benchmark}
-            onChange={(e) =>
-              setDetectiveConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Benchmark"
-          />
-          <input
-            type="number"
-            min={1}
-            max={15}
-            value={detectiveConfig.eventWindowDays}
-            onChange={(e) =>
-              setDetectiveConfig((c) => ({ ...c, eventWindowDays: Number(e.target.value) || 5 }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Event window days"
-          />
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={detectiveConfig.maxTickers}
-            onChange={(e) =>
-              setDetectiveConfig((c) => ({ ...c, maxTickers: Number(e.target.value) || 5 }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Max tickers"
-          />
+        <p className="mt-1 text-xs text-slate-500">
+          Find what likely drove your portfolio move on a given day: top contributors plus ranked events (e.g. SEC filings) with reaction stats.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Analyze date</label>
+            <input
+              type="date"
+              value={detectiveConfig.analyzeDate}
+              onChange={(e) => setDetectiveConfig((c) => ({ ...c, analyzeDate: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              title="The date for which to explain portfolio performance"
+            />
+            <p className="mt-1 text-xs text-slate-500">The trading date you want to explain. Portfolio return is measured around this date.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Benchmark ticker</label>
+            <input
+              value={detectiveConfig.benchmark}
+              onChange={(e) =>
+                setDetectiveConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              placeholder="e.g. SPY"
+              title="Index used to compute abnormal returns"
+            />
+            <p className="mt-1 text-xs text-slate-500">Market benchmark (e.g. SPY). Abnormal return = your return minus benchmark over the same window.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Event window (days)</label>
+            <input
+              type="number"
+              min={1}
+              max={15}
+              value={detectiveConfig.eventWindowDays}
+              onChange={(e) =>
+                setDetectiveConfig((c) => ({ ...c, eventWindowDays: Number(e.target.value) || 5 }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              title="Number of days used to measure portfolio and benchmark return"
+            />
+            <p className="mt-1 text-xs text-slate-500">Number of days over which portfolio return is measured (e.g. 5 = 5-day return ending on analyze date).</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Max tickers to analyze</label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={detectiveConfig.maxTickers}
+              onChange={(e) =>
+                setDetectiveConfig((c) => ({ ...c, maxTickers: Number(e.target.value) || 5 }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              title="Limit report to this many top contributors"
+            />
+            <p className="mt-1 text-xs text-slate-500">Only the top N contributors by impact are analyzed for events. Keeps the report focused.</p>
+          </div>
         </div>
-        {uxMode === "guided" ? (
-          <p className="mt-2 text-xs text-slate-500">
-            <strong>Detective inputs:</strong> <em>eventWindowDays</em> controls how far back portfolio return is measured.
-            <em> maxTickers</em> limits analysis to biggest contributors. SPY is the default market benchmark.
-          </p>
-        ) : null}
         <div className="mt-3 flex gap-2">
           <button
             onClick={syncEvents}
@@ -408,88 +440,118 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Backtests</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
-          <input
-            type="date"
-            value={backtestConfig.start}
-            onChange={(e) => setBacktestConfig((c) => ({ ...c, start: e.target.value }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={backtestConfig.end}
-            onChange={(e) => setBacktestConfig((c) => ({ ...c, end: e.target.value }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-          />
-          <select
-            value={backtestConfig.frequency}
-            onChange={(e) =>
-              setBacktestConfig((c) => ({
-                ...c,
-                frequency: e.target.value as "WEEKLY" | "MONTHLY",
-              }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-          >
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-          </select>
-          <select
-            value={backtestConfig.strategy}
-            onChange={(e) =>
-              setBacktestConfig((c) => ({
-                ...c,
-                strategy: e.target.value as "BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP",
-              }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-          >
-            <option value="BUY_HOLD">Buy &amp; Hold</option>
-            <option value="RISK_PARITY">Risk Parity</option>
-            <option value="MINVAR_QP">Min-Variance (QP)</option>
-          </select>
-          <input
-            value={backtestConfig.benchmark}
-            onChange={(e) =>
-              setBacktestConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Benchmark"
-          />
-          <input
-            type="number"
-            value={String(backtestConfig.costBps)}
-            onChange={(e) =>
-              setBacktestConfig((c) => ({ ...c, costBps: Number(e.target.value) || 0 }))
-            }
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Transaction cost bps"
-          />
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            max="1"
-            value={backtestConfig.maxWeight}
-            onChange={(e) => setBacktestConfig((c) => ({ ...c, maxWeight: e.target.value }))}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-            placeholder="Max weight (optional)"
-          />
-          <label className="flex items-center gap-2 text-sm">
+        <p className="mt-1 text-xs text-slate-500">
+          Simulate portfolio performance with periodic rebalancing. Compare strategies (buy &amp; hold, risk parity, min-variance) over a date range.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Start date</label>
             <input
-              type="checkbox"
-              checked={backtestConfig.shrinkage}
-              onChange={(e) => setBacktestConfig((c) => ({ ...c, shrinkage: e.target.checked }))}
+              type="date"
+              value={backtestConfig.start}
+              onChange={(e) => setBacktestConfig((c) => ({ ...c, start: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
             />
-            Covariance shrinkage
-          </label>
+            <p className="mt-1 text-xs text-slate-500">First day of the simulation. Prices from this date onward are used.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">End date</label>
+            <input
+              type="date"
+              value={backtestConfig.end}
+              onChange={(e) => setBacktestConfig((c) => ({ ...c, end: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-500">Last day of the simulation. Typically today or a recent trading day.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Rebalance frequency</label>
+            <select
+              value={backtestConfig.frequency}
+              onChange={(e) =>
+                setBacktestConfig((c) => ({
+                  ...c,
+                  frequency: e.target.value as "WEEKLY" | "MONTHLY",
+                }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            >
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">How often the portfolio weights are rebalanced in the simulation (except Buy &amp; Hold).</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Strategy</label>
+            <select
+              value={backtestConfig.strategy}
+              onChange={(e) =>
+                setBacktestConfig((c) => ({
+                  ...c,
+                  strategy: e.target.value as "BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP",
+                }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            >
+              <option value="BUY_HOLD">Buy &amp; Hold</option>
+              <option value="RISK_PARITY">Risk Parity</option>
+              <option value="MINVAR_QP">Min-Variance (QP)</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">Buy &amp; Hold = no rebalancing. Risk Parity = equal risk contribution. Min-Variance = lowest vol subject to constraints.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Benchmark ticker</label>
+            <input
+              value={backtestConfig.benchmark}
+              onChange={(e) =>
+                setBacktestConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              placeholder="e.g. SPY"
+            />
+            <p className="mt-1 text-xs text-slate-500">Index to compare results against (e.g. SPY). Shown in the backtest report.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Transaction cost (bps)</label>
+            <input
+              type="number"
+              value={String(backtestConfig.costBps)}
+              onChange={(e) =>
+                setBacktestConfig((c) => ({ ...c, costBps: Number(e.target.value) || 0 }))
+              }
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              placeholder="0"
+            />
+            <p className="mt-1 text-xs text-slate-500">Cost per trade in basis points (1 bps = 0.01%). Applied to turnover at each rebalance. Use 0 for no cost.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Max weight per holding (optional)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={backtestConfig.maxWeight}
+              onChange={(e) => setBacktestConfig((c) => ({ ...c, maxWeight: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              placeholder="e.g. 0.25"
+            />
+            <p className="mt-1 text-xs text-slate-500">Cap each weight (e.g. 0.25 = 25% max). Only used for Min-Variance (QP). Leave empty for no cap.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Covariance shrinkage</label>
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={backtestConfig.shrinkage}
+                onChange={(e) => setBacktestConfig((c) => ({ ...c, shrinkage: e.target.checked }))}
+                className="rounded border-slate-300"
+              />
+              <span>Shrinkage</span>
+            </label>
+            <p className="mt-1 text-xs text-slate-500">Stabilize covariance estimates when rebalancing (Risk Parity / Min-Variance). Often improves out-of-sample results.</p>
+          </div>
         </div>
-        {uxMode === "guided" ? (
-          <p className="mt-2 text-xs text-slate-500">
-            <strong>Backtest benchmark:</strong> SPY gives you a simple market baseline. If your strategy underperforms SPY
-            after costs, reconsider allocation or rebalance frequency.
-          </p>
-        ) : null}
         <button
           onClick={runBacktest}
           disabled={runningBacktest}
