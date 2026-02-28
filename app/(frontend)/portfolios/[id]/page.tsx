@@ -14,6 +14,7 @@ import NextStepsPanel from "../../../../components/NextStepsPanel";
 import DisclosureHelp from "../../../../components/DisclosureHelp";
 import { getPortfolioNextSteps } from "../../../../lib/uxSuggestions";
 import { trackEvent } from "../../../../lib/telemetry";
+import { useUxMode } from "../../../../lib/useUxMode";
 
 type SnapshotConfig = {
   range: string;
@@ -42,6 +43,7 @@ type BacktestConfig = {
 
 export default function PortfolioDetailPage({ params }: { params: { id: string } }) {
   const id = params.id;
+  const uxMode = useUxMode();
   const [portfolio, setPortfolio] = useState<PortfolioDetail | null>(null);
   const [history, setHistory] = useState<SnapshotSummary[]>([]);
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
@@ -307,12 +309,14 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         </div>
       )}
 
-      <NextStepsPanel steps={nextSteps} />
+      {uxMode === "guided" ? <NextStepsPanel steps={nextSteps} /> : null}
 
-      <DisclosureHelp title="How to use this page effectively" defaultOpen>
-        Recommended order: 1) Run Snapshot for baseline risk, 2) Sync Events, 3) Run Detective Report for explainability,
-        4) Run monthly backtests to compare strategies, 5) Add alerts for monitoring.
-      </DisclosureHelp>
+      {uxMode === "guided" ? (
+        <DisclosureHelp title="How to use this page effectively" defaultOpen>
+          Recommended order: 1) Run Snapshot for baseline risk, 2) Sync Events, 3) Run Detective Report for explainability,
+          4) Run monthly backtests to compare strategies, 5) Add alerts for monitoring.
+        </DisclosureHelp>
+      ) : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Holdings</h2>
@@ -368,6 +372,12 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             Shrinkage
           </label>
         </div>
+        {uxMode === "guided" ? (
+          <p className="mt-2 text-xs text-slate-500">
+            <strong>Benchmark tip:</strong> SPY is an ETF that tracks the S&amp;P 500 (broad US market) and is a good
+            default comparison for beta and relative performance.
+          </p>
+        ) : null}
         <button
           onClick={runSnapshot}
           disabled={running}
@@ -454,6 +464,12 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             placeholder="Max tickers"
           />
         </div>
+        {uxMode === "guided" ? (
+          <p className="mt-2 text-xs text-slate-500">
+            <strong>Detective inputs:</strong> <em>eventWindowDays</em> controls how far back portfolio return is measured.
+            <em> maxTickers</em> limits analysis to biggest contributors. SPY is the default market benchmark.
+          </p>
+        ) : null}
         <div className="mt-3 flex gap-2">
           <button
             onClick={syncEvents}
@@ -582,6 +598,12 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             Covariance shrinkage
           </label>
         </div>
+        {uxMode === "guided" ? (
+          <p className="mt-2 text-xs text-slate-500">
+            <strong>Backtest benchmark:</strong> SPY gives you a simple market baseline. If your strategy underperforms SPY
+            after costs, reconsider allocation or rebalance frequency.
+          </p>
+        ) : null}
         <button
           onClick={runBacktest}
           disabled={runningBacktest}

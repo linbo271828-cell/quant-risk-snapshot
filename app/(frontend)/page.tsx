@@ -9,6 +9,7 @@ import SuggestionCard from "../../components/SuggestionCard";
 import DisclosureHelp from "../../components/DisclosureHelp";
 import { getInputSuggestions } from "../../lib/uxSuggestions";
 import { trackEvent } from "../../lib/telemetry";
+import { useUxMode } from "../../lib/useUxMode";
 
 const STORAGE_KEY = "quant-risk-input";
 
@@ -29,6 +30,7 @@ function parseHoldings(text: string): HoldingsItem[] {
 
 export default function HomePage() {
   const router = useRouter();
+  const uxMode = useUxMode();
   const [mode, setMode] = useState<HoldingsInput["mode"]>("weights");
   const [rawHoldings, setRawHoldings] = useState("AAPL, 0.5\nMSFT, 0.3\nGOOGL, 0.2");
   const [range, setRange] = useState("1y");
@@ -133,7 +135,7 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      {suggestions.length > 0 ? (
+      {uxMode === "guided" && suggestions.length > 0 ? (
         <section className="mb-6">
           <h2 className="section-title">Suggested setup</h2>
           <p className="section-subtitle">Apply these defaults to get a stable first analysis.</p>
@@ -157,6 +159,12 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+      ) : null}
+
+      {uxMode === "advanced" ? (
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Advanced mode is active: helper content is reduced. Use SPY as benchmark unless you have a specific reference index.
+        </div>
       ) : null}
 
       <form onSubmit={onSubmit}>
@@ -359,7 +367,7 @@ export default function HomePage() {
           </div>
 
           {/* ---- Right column: Help ---- */}
-          <div className="space-y-6">
+          {uxMode === "guided" ? <div className="space-y-6">
             {/* How to use */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
@@ -501,7 +509,7 @@ export default function HomePage() {
                 </div>
               </dl>
             </div>
-          </div>
+          </div> : null}
         </div>
       </form>
     </div>

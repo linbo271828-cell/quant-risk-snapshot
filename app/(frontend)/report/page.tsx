@@ -11,6 +11,7 @@ import MetricCard from "../../../components/MetricCard";
 import TerminologyToggle from "../../../components/TerminologyToggle";
 import EmptyStateCard from "../../../components/EmptyStateCard";
 import { trackEvent } from "../../../lib/telemetry";
+import { useUxMode } from "../../../lib/useUxMode";
 import {
   annualizedReturn,
   annualizedVolatility,
@@ -150,6 +151,7 @@ function SectionDesc({ children }: { children: React.ReactNode }) {
 }
 
 export default function ReportPage() {
+  const uxMode = useUxMode();
   const [input, setInput] = useState<HoldingsInput | null>(null);
   const [prices, setPrices] = useState<PricesResponse | null>(null);
   const [error, setError] = useState("");
@@ -326,9 +328,11 @@ export default function ReportPage() {
       {error && <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">{error}</div>}
 
       {/* Guide */}
-      <div className="mt-6">
-        <ReportGuide />
-      </div>
+      {uxMode === "guided" ? (
+        <div className="mt-6">
+          <ReportGuide />
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
         <strong>Key takeaway:</strong>{" "}
@@ -369,10 +373,12 @@ export default function ReportPage() {
         <LineChartCard title="Equity curve (indexed to $100)" data={report.charts.equityData} valueFormatter={(v) => `$${v.toFixed(1)}`} />
       </div>
 
-      <DisclosureHelp title="How to interpret this report quickly">
-        Start with Max Drawdown and Sharpe for risk-adjusted quality, then inspect Risk Contributions to identify
-        concentration drivers. If one or two names dominate risk, test alternatives in Rebalance and compare in Backtests.
-      </DisclosureHelp>
+      {uxMode === "guided" ? (
+        <DisclosureHelp title="How to interpret this report quickly">
+          Start with Max Drawdown and Sharpe for risk-adjusted quality, then inspect Risk Contributions to identify
+          concentration drivers. If one or two names dominate risk, test alternatives in Rebalance and compare in Backtests.
+        </DisclosureHelp>
+      ) : null}
 
       {/* Drawdown + Rolling vol */}
       <div className="mt-6">

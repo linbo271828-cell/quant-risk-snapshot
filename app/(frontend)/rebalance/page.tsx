@@ -23,6 +23,7 @@ import { cn } from "../../../lib/utils";
 import type { HoldingsInput, PricesResponse, RebalanceObjective, ReturnsByTicker } from "../../../lib/types";
 import { getRebalanceSuggestions } from "../../../lib/uxSuggestions";
 import { trackEvent } from "../../../lib/telemetry";
+import { useUxMode } from "../../../lib/useUxMode";
 
 const STORAGE_KEY = "quant-risk-input";
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
@@ -98,6 +99,7 @@ function RebalanceGuide() {
 }
 
 export default function RebalancePage() {
+  const uxMode = useUxMode();
   const [input, setInput] = useState<HoldingsInput | null>(null);
   const [prices, setPrices] = useState<PricesResponse | null>(null);
   const [error, setError] = useState("");
@@ -241,11 +243,13 @@ export default function RebalancePage() {
       </div>
 
       {/* Guide */}
-      <div className="mt-6">
-        <RebalanceGuide />
-      </div>
+      {uxMode === "guided" ? (
+        <div className="mt-6">
+          <RebalanceGuide />
+        </div>
+      ) : null}
 
-      {suggestions.length > 0 ? (
+      {uxMode === "guided" && suggestions.length > 0 ? (
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {suggestions.map((s) => (
             <SuggestionCard
