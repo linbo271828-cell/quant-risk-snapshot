@@ -1,4 +1,5 @@
 import { portfolioVariance, riskContributions } from "./math";
+import { solveMinVarQP } from "./qp";
 
 /* ---------- Matrix inverse (Gauss-Jordan) ---------- */
 
@@ -34,9 +35,13 @@ function invertMatrix(matrix: number[][]): number[][] | null {
 
 /* ---------- Min-Variance (long-only heuristic) ---------- */
 
-export function minVarianceWeights(cov: number[][], maxWeight?: number): number[] {
+export function minVarianceWeights(cov: number[][], maxWeight?: number, useQpConstraints = true): number[] {
   const n = cov.length;
   if (n === 0) return [];
+
+  if (useQpConstraints) {
+    return solveMinVarQP(cov, { maxWeight });
+  }
 
   const inv = invertMatrix(cov);
   let weights: number[];

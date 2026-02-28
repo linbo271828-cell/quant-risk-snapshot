@@ -29,6 +29,9 @@ model Portfolio {
   holdings              Holding[]
   snapshots             Snapshot[]
   alertRules            AlertRule[]
+  detectiveReports      DetectiveReport[]
+  events                Event[]
+  backtestRuns          BacktestRun[]
 
   @@index([userId])
 }
@@ -70,4 +73,101 @@ model AlertRule {
   portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   @@index([portfolioId, type])
+}
+
+enum EventType {
+  SEC_FILING
+  EARNINGS
+  NEWS
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  portfolioId String
+  ticker      String
+  type        EventType
+  eventTime   DateTime
+  title       String
+  url         String
+  source      String
+  payloadJson Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  impacts     EventImpact[]
+  reportItems DetectiveReportItem[]
+
+  @@index([portfolioId, ticker, eventTime])
+  @@index([type, eventTime])
+  @@unique([portfolioId, ticker, type, eventTime, title])
+}
+
+model EventImpact {
+  id           String   @id @default(cuid())
+  eventId      String
+  benchmark    String
+  post1dAbRet  Float?
+  post3dAbRet  Float?
+  post5dAbRet  Float?
+  computedAt   DateTime @default(now())
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@unique([eventId, benchmark])
+}
+
+model DetectiveReport {
+  id          String               @id @default(cuid())
+  portfolioId String
+  createdAt   DateTime             @default(now())
+  analyzeDate DateTime
+  benchmark   String
+  summaryJson Json
+  portfolio   Portfolio            @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  items       DetectiveReportItem[]
+
+  @@index([portfolioId, createdAt])
+}
+
+model DetectiveReportItem {
+  id              String          @id @default(cuid())
+  reportId         String
+  ticker          String
+  eventId         String
+  score           Float
+  explanationJson Json
+  report          DetectiveReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  event           Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, score])
+  @@index([eventId])
+}
+
+enum BacktestFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+enum BacktestStrategy {
+  BUY_HOLD
+  RISK_PARITY
+  MINVAR_QP
+}
+
+model BacktestRun {
+  id          String            @id @default(cuid())
+  portfolioId String
+  createdAt   DateTime          @default(now())
+  startDate   DateTime
+  endDate     DateTime
+  benchmark   String
+  frequency   BacktestFrequency
+  strategy    BacktestStrategy
+  paramsJson  Json
+  metricsJson Json
+  seriesJson  Json
+  weightsJson Json
+  portfolio   Portfolio         @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, createdAt])
 }

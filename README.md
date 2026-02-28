@@ -38,8 +38,10 @@ This project was built to satisfy a backend-focused assignment (server-side logi
 | `/rebalance` | Min-variance or risk-parity rebalancer with turnover slider |
 | `/portfolios` | Persistent portfolio monitor list (database-backed) |
 | `/portfolios/new` | Create saved portfolio with defaults |
-| `/portfolios/[id]` | Portfolio detail, run snapshot, history, alerts |
+| `/portfolios/[id]` | Portfolio detail, run snapshot, detective, backtests, alerts |
 | `/snapshots/[snapshotId]` | Snapshot report loaded from database |
+| `/detective/reports/[reportId]` | Portfolio Detective report (drivers + ranked events) |
+| `/backtests/[backtestId]` | Backtest report (equity curve + metrics + rebalance weights) |
 
 ---
 
@@ -94,6 +96,18 @@ Server-side route that fetches daily adjusted close prices from Yahoo Finance (f
 - `GET /api/portfolios/:id/snapshots` list snapshot history
 - `GET /api/snapshots/:snapshotId` full snapshot detail payload
 - `GET /api/snapshots/:snapshotId/export?fmt=json|csv` export endpoint
+
+#### Events + Portfolio Detective
+- `POST /api/portfolios/:id/events/sync` sync SEC filings for portfolio tickers
+- `GET /api/portfolios/:id/events?type=&ticker=&limit=&cursor=` list stored events for a portfolio
+- `POST /api/portfolios/:id/detective/run` run detective scoring for an analyze date/window
+- `GET /api/portfolios/:id/detective/reports` list detective report summaries
+- `GET /api/detective/reports/:reportId` full detective payload (summary, drivers, ranked events + reaction stats)
+
+#### Backtests
+- `POST /api/portfolios/:id/backtests/run` run a periodic rebalance backtest and persist output
+- `GET /api/portfolios/:id/backtests` list backtest runs for a portfolio
+- `GET /api/backtests/:backtestId` full backtest payload
 
 #### Alerts (bonus)
 - `POST /api/portfolios/:id/alerts` create alert rule (`vol_gt`, `maxdd_lt`, `var_gt`)
@@ -152,11 +166,13 @@ Percent: `RC_i / sigma_p` (displayed as bar chart)
 
 ## Rebalancer
 
-### Min-Variance (Long-Only)
+### Min-Variance (QP constraints)
 
-Unconstrained solution: `w* proportional to Sigma^{-1} * 1`, normalized.
+Min-variance weights are solved with a quadratic program:
+- objective: minimize `w^T Sigma w`
+- constraints: `sum(w)=1`, `w_i >= 0`, optional `w_i <= maxWeight`
 
-Long-only enforced via clipping negative weights to 0 and renormalizing (heuristic; a proper QP solver would be the next step).
+The app uses a QP solver path by default (toggle available on `/rebalance`).
 
 ### Risk Parity (Iterative)
 
@@ -188,11 +204,11 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 - **Daily bars only** — no intraday data
 - **Survivorship bias** — only currently listed tickers
 - **Static weights** — portfolio returns use last-day weights, not daily rebalanced
-- **No slippage/transaction cost model** (turnover is informational only)
+- **No slippage model** — backtests support transaction cost in bps, but no market-impact/slippage model yet
 - **Covariance instability** — sample covariance can be noisy for small windows; shrinkage toggle helps
 - **Corporate actions** — uses Yahoo Finance adjusted close (accounts for splits/dividends)
 - **Rate limits** — Yahoo Finance is unofficial; caching and retries handle transient issues
-- **Min-variance heuristic** — clipping negatives is approximate; a QP solver would be more accurate
+- **Event ingestion scope** — MVP uses SEC filings first; earnings/news connectors are still optional
 
 ---
 
@@ -208,8 +224,10 @@ The codebase is organized so **frontend** (pages, UI) and **backend** (API route
   - `rebalance/page.tsx` → `/rebalance` (rebalancer)
   - `portfolios/page.tsx` → `/portfolios` (portfolio list)
   - `portfolios/new/page.tsx` → `/portfolios/new`
-  - `portfolios/[id]/page.tsx` → `/portfolios/[id]` (detail + snapshot runner)
+  - `portfolios/[id]/page.tsx` → `/portfolios/[id]` (detail + snapshot + detective + backtests)
   - `snapshots/[snapshotId]/page.tsx` → `/snapshots/[snapshotId]` (stored snapshot report)
+  - `detective/reports/[reportId]/page.tsx` → `/detective/reports/[reportId]`
+  - `backtests/[backtestId]/page.tsx` → `/backtests/[backtestId]`
   - `auth/signin/page.tsx` → `/auth/signin`
 - **`app/layout.tsx`** — Root layout (nav, session provider, global styles).
 - **`components/`** — Reusable UI: `MetricCard`, `LineChartCard`, `BarChartCard`, `CorrHeatmap`, `SiteHeader`, `SessionProvider`.
@@ -222,19 +240,49 @@ The codebase is organized so **frontend** (pages, UI) and **backend** (API route
   - `prices/route.ts` — Server-side price API (Yahoo Finance)
   - `portfolios/route.ts`, `portfolios/[id]/route.ts` — Portfolio CRUD
   - `portfolios/[id]/snapshots/route.ts` — Run/list snapshots
+  - `portfolios/[id]/events/route.ts`, `portfolios/[id]/events/sync/route.ts` — Event ingestion/listing
+  - `portfolios/[id]/detective/run/route.ts`, `portfolios/[id]/detective/reports/route.ts` — Detective runs/list
+  - `detective/reports/[reportId]/route.ts` — Detective detail
+  - `portfolios/[id]/backtests/run/route.ts`, `portfolios/[id]/backtests/route.ts` — Backtest run/list
+  - `backtests/[backtestId]/route.ts` — Backtest detail
   - `portfolios/[id]/alerts/route.ts`, `portfolios/[id]/alerts/check/route.ts` — Alert rules
   - `snapshots/[snapshotId]/route.ts`, `snapshots/[snapshotId]/export/route.ts` — Snapshot detail and export
 - **`lib/`** — Shared and server-side logic:
-  - **Used by API:** `auth.ts`, `db.ts`, `marketData.ts`, `snapshot.ts`
-  - **Shared (UI + API):** `math.ts`, `rebalance.ts`, `types.ts`, `utils.ts`
+  - **Used by API:** `auth.ts`, `db.ts`, `marketData.ts`, `snapshot.ts`, `events.ts`, `detective.ts`, `backtest.ts`
+  - **Shared (UI + API):** `math.ts`, `rebalance.ts`, `qp.ts`, `types.ts`, `utils.ts`
 - **`prisma/`** — `schema.prisma` and migrations (PostgreSQL).
 
 ---
 
+## Architecture (updated)
+
+```mermaid
+flowchart LR
+portfolioUI[PortfoliosIdPage] --> syncApi[POST EventsSync]
+portfolioUI --> detectiveApi[POST DetectiveRun]
+portfolioUI --> backtestApi[POST BacktestsRun]
+syncApi --> eventsLib[libEvents]
+detectiveApi --> detectiveLib[libDetective]
+backtestApi --> backtestLib[libBacktest]
+detectiveLib --> marketLib[libMarketData]
+backtestLib --> qpLib[libQP]
+eventsLib --> secApi[SECFilingsAPI]
+detectiveLib --> db[(PostgresPrisma)]
+backtestLib --> db
+db --> detectiveView[DetectiveReportPage]
+db --> backtestView[BacktestReportPage]
+```
+
+## Learning since start of semester
+
+- **API + ownership checks**: every user-scoped API validates session (`401`) and ownership (`404`) before returning data; this keeps private portfolio data isolated.
+- **DB modeling**: moved from single snapshot entities into richer report tables (`Event`, `EventImpact`, `DetectiveReport`, `BacktestRun`) with JSON payloads for fast iteration and relational keys for ownership.
+- **Caching/rate-limits**: reused server-side market cache and added SEC request pacing + retries to reduce transient failure impact.
+- **Analytics sanity checks**: type-checking and deterministic formulas (returns, drawdown, abnormal returns, turnover/cost accounting) were used as a baseline validation layer before UI wiring.
+
 ## Future Work
 
-- Factor model exposures (Fama-French)
-- Proper QP solver for constrained optimization
-- Live alerts / watchlist
-- Intraday data support
-- Portfolio backtesting with periodic rebalancing
+- Factor model exposures (Fama-French FF3/FF5)
+- Live alerts/watchlist and scheduled checks
+- Intraday data support (1m/5m)
+- ML-assisted detective ranking (after enough labeled event outcomes)

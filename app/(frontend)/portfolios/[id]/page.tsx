@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { AlertRule, PortfolioDetail, SnapshotSummary } from "../../../../lib/types";
+import type {
+  AlertRule,
+  BacktestRunSummary,
+  DetectiveReportSummary,
+  PortfolioDetail,
+  SnapshotSummary,
+} from "../../../../lib/types";
 import MetricCard from "../../../../components/MetricCard";
 
 type SnapshotConfig = {
@@ -12,15 +18,51 @@ type SnapshotConfig = {
   shrinkage: boolean;
 };
 
+type DetectiveConfig = {
+  analyzeDate: string;
+  benchmark: string;
+  eventWindowDays: number;
+  maxTickers: number;
+};
+
+type BacktestConfig = {
+  start: string;
+  end: string;
+  benchmark: string;
+  frequency: "WEEKLY" | "MONTHLY";
+  strategy: "BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP";
+  costBps: number;
+  maxWeight: string;
+  shrinkage: boolean;
+};
+
 export default function PortfolioDetailPage({ params }: { params: { id: string } }) {
   const id = params.id;
   const [portfolio, setPortfolio] = useState<PortfolioDetail | null>(null);
   const [history, setHistory] = useState<SnapshotSummary[]>([]);
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
+  const [detectiveReports, setDetectiveReports] = useState<DetectiveReportSummary[]>([]);
+  const [backtests, setBacktests] = useState<BacktestRunSummary[]>([]);
   const [config, setConfig] = useState<SnapshotConfig>({
     range: "1y",
     benchmark: "SPY",
     riskFreeRate: 0,
+    shrinkage: false,
+  });
+  const [detectiveConfig, setDetectiveConfig] = useState<DetectiveConfig>({
+    analyzeDate: new Date().toISOString().slice(0, 10),
+    benchmark: "SPY",
+    eventWindowDays: 5,
+    maxTickers: 5,
+  });
+  const [backtestConfig, setBacktestConfig] = useState<BacktestConfig>({
+    start: new Date(new Date().setUTCFullYear(new Date().getUTCFullYear() - 1)).toISOString().slice(0, 10),
+    end: new Date().toISOString().slice(0, 10),
+    benchmark: "SPY",
+    frequency: "MONTHLY",
+    strategy: "BUY_HOLD",
+    costBps: 0,
+    maxWeight: "",
     shrinkage: false,
   });
   const [alertType, setAlertType] = useState<"vol_gt" | "maxdd_lt" | "var_gt">("vol_gt");
@@ -28,29 +70,44 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   const [alertResult, setAlertResult] = useState("");
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [syncingEvents, setSyncingEvents] = useState(false);
+  const [runningDetective, setRunningDetective] = useState(false);
+  const [runningBacktest, setRunningBacktest] = useState(false);
   const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const [portfolioRes, snapshotsRes, alertsRes] = await Promise.all([
+      const [portfolioRes, snapshotsRes, alertsRes, detectiveRes, backtestsRes] = await Promise.all([
         fetch(`/api/portfolios/${id}`),
         fetch(`/api/portfolios/${id}/snapshots`),
         fetch(`/api/portfolios/${id}/alerts`),
+        fetch(`/api/portfolios/${id}/detective/reports`),
+        fetch(`/api/portfolios/${id}/backtests`),
       ]);
-      if (portfolioRes.status === 401 || snapshotsRes.status === 401 || alertsRes.status === 401) {
+      if (
+        portfolioRes.status === 401 ||
+        snapshotsRes.status === 401 ||
+        alertsRes.status === 401 ||
+        detectiveRes.status === 401 ||
+        backtestsRes.status === 401
+      ) {
         window.location.href = "/auth/signin?callbackUrl=" + encodeURIComponent("/portfolios/" + id);
         return;
       }
       const portfolioData = await portfolioRes.json();
       const snapshotsData = await snapshotsRes.json();
       const alertsData = await alertsRes.json();
+      const detectiveData = await detectiveRes.json();
+      const backtestsData = await backtestsRes.json();
       if (!portfolioRes.ok) throw new Error(portfolioData?.error ?? "Failed to load portfolio.");
       setPortfolio(portfolioData as PortfolioDetail);
       setConfig((portfolioData as PortfolioDetail).defaults);
       setHistory((snapshotsData as SnapshotSummary[]) ?? []);
       setAlerts((alertsData as AlertRule[]) ?? []);
+      setDetectiveReports((detectiveData as DetectiveReportSummary[]) ?? []);
+      setBacktests((backtestsData as BacktestRunSummary[]) ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load portfolio.");
     } finally {
@@ -94,6 +151,79 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       setAlerts((prev) => [data as AlertRule, ...prev]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create alert.");
+    }
+  }
+
+  async function syncEvents() {
+    setSyncingEvents(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/portfolios/${id}/events/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sources: ["SEC"] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Failed to sync events.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sync events.");
+    } finally {
+      setSyncingEvents(false);
+    }
+  }
+
+  async function runDetective() {
+    setRunningDetective(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/portfolios/${id}/detective/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(detectiveConfig),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Detective run failed.");
+      await load();
+      if (data?.reportId) {
+        window.location.href = `/detective/reports/${data.reportId}`;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Detective run failed.");
+    } finally {
+      setRunningDetective(false);
+    }
+  }
+
+  async function runBacktest() {
+    setRunningBacktest(true);
+    setError("");
+    try {
+      const maxWeightNum = Number(backtestConfig.maxWeight);
+      const res = await fetch(`/api/portfolios/${id}/backtests/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start: backtestConfig.start,
+          end: backtestConfig.end,
+          benchmark: backtestConfig.benchmark,
+          frequency: backtestConfig.frequency,
+          strategy: backtestConfig.strategy,
+          costBps: backtestConfig.costBps,
+          maxWeight: Number.isFinite(maxWeightNum) && maxWeightNum > 0 ? maxWeightNum : undefined,
+          shrinkage: backtestConfig.shrinkage,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Backtest run failed.");
+      await load();
+      if (data?.backtestId) {
+        window.location.href = `/backtests/${data.backtestId}`;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Backtest run failed.");
+    } finally {
+      setRunningBacktest(false);
     }
   }
 
@@ -243,6 +373,221 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
               <tr>
                 <td colSpan={5} className="py-4 text-slate-500">
                   No snapshots yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-700">Detective</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+          <input
+            type="date"
+            value={detectiveConfig.analyzeDate}
+            onChange={(e) => setDetectiveConfig((c) => ({ ...c, analyzeDate: e.target.value }))}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          />
+          <input
+            value={detectiveConfig.benchmark}
+            onChange={(e) =>
+              setDetectiveConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            placeholder="Benchmark"
+          />
+          <input
+            type="number"
+            min={1}
+            max={15}
+            value={detectiveConfig.eventWindowDays}
+            onChange={(e) =>
+              setDetectiveConfig((c) => ({ ...c, eventWindowDays: Number(e.target.value) || 5 }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            placeholder="Event window days"
+          />
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={detectiveConfig.maxTickers}
+            onChange={(e) =>
+              setDetectiveConfig((c) => ({ ...c, maxTickers: Number(e.target.value) || 5 }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            placeholder="Max tickers"
+          />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={syncEvents}
+            disabled={syncingEvents}
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+          >
+            {syncingEvents ? "Syncing..." : "Sync Events"}
+          </button>
+          <button
+            onClick={runDetective}
+            disabled={runningDetective}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+          >
+            {runningDetective ? "Running..." : "Run Detective Report"}
+          </button>
+        </div>
+        <h3 className="mt-4 text-sm font-semibold text-slate-700">Recent Detective Reports</h3>
+        <table className="mt-2 w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-slate-500">
+              <th className="py-2 text-left">Analyze Date</th>
+              <th className="py-2 text-left">Portfolio Return</th>
+              <th className="py-2 text-left">Abnormal Return</th>
+              <th className="py-2 text-left">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detectiveReports.map((r) => (
+              <tr key={r.id} className="border-b border-slate-50">
+                <td className="py-2">
+                  <Link href={`/detective/reports/${r.id}`} className="text-blue-600 hover:underline">
+                    {new Date(r.analyzeDate).toLocaleDateString()}
+                  </Link>
+                </td>
+                <td className="py-2">{(r.portfolioReturn * 100).toFixed(2)}%</td>
+                <td className="py-2">{(r.abnormalReturn * 100).toFixed(2)}%</td>
+                <td className="py-2">{new Date(r.createdAt).toLocaleString()}</td>
+              </tr>
+            ))}
+            {detectiveReports.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-3 text-slate-500">
+                  No detective reports yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-700">Backtests</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+          <input
+            type="date"
+            value={backtestConfig.start}
+            onChange={(e) => setBacktestConfig((c) => ({ ...c, start: e.target.value }))}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          />
+          <input
+            type="date"
+            value={backtestConfig.end}
+            onChange={(e) => setBacktestConfig((c) => ({ ...c, end: e.target.value }))}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          />
+          <select
+            value={backtestConfig.frequency}
+            onChange={(e) =>
+              setBacktestConfig((c) => ({
+                ...c,
+                frequency: e.target.value as "WEEKLY" | "MONTHLY",
+              }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          >
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+          </select>
+          <select
+            value={backtestConfig.strategy}
+            onChange={(e) =>
+              setBacktestConfig((c) => ({
+                ...c,
+                strategy: e.target.value as "BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP",
+              }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+          >
+            <option value="BUY_HOLD">Buy &amp; Hold</option>
+            <option value="RISK_PARITY">Risk Parity</option>
+            <option value="MINVAR_QP">Min-Variance (QP)</option>
+          </select>
+          <input
+            value={backtestConfig.benchmark}
+            onChange={(e) =>
+              setBacktestConfig((c) => ({ ...c, benchmark: e.target.value.toUpperCase() }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            placeholder="Benchmark"
+          />
+          <input
+            type="number"
+            value={String(backtestConfig.costBps)}
+            onChange={(e) =>
+              setBacktestConfig((c) => ({ ...c, costBps: Number(e.target.value) || 0 }))
+            }
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            placeholder="Transaction cost bps"
+          />
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={backtestConfig.maxWeight}
+            onChange={(e) => setBacktestConfig((c) => ({ ...c, maxWeight: e.target.value }))}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            placeholder="Max weight (optional)"
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={backtestConfig.shrinkage}
+              onChange={(e) => setBacktestConfig((c) => ({ ...c, shrinkage: e.target.checked }))}
+            />
+            Covariance shrinkage
+          </label>
+        </div>
+        <button
+          onClick={runBacktest}
+          disabled={runningBacktest}
+          className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+        >
+          {runningBacktest ? "Running..." : "Run Backtest"}
+        </button>
+        <h3 className="mt-4 text-sm font-semibold text-slate-700">Backtest Runs</h3>
+        <table className="mt-2 w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-slate-500">
+              <th className="py-2 text-left">Created</th>
+              <th className="py-2 text-left">Range</th>
+              <th className="py-2 text-left">Strategy</th>
+              <th className="py-2 text-left">Total Return</th>
+              <th className="py-2 text-left">CAGR</th>
+              <th className="py-2 text-left">MaxDD</th>
+            </tr>
+          </thead>
+          <tbody>
+            {backtests.map((b) => (
+              <tr key={b.id} className="border-b border-slate-50">
+                <td className="py-2">
+                  <Link href={`/backtests/${b.id}`} className="text-blue-600 hover:underline">
+                    {new Date(b.createdAt).toLocaleString()}
+                  </Link>
+                </td>
+                <td className="py-2">
+                  {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
+                </td>
+                <td className="py-2">{b.strategy}</td>
+                <td className="py-2">{(b.totalReturn * 100).toFixed(2)}%</td>
+                <td className="py-2">{(b.cagr * 100).toFixed(2)}%</td>
+                <td className="py-2">{(b.maxDD * 100).toFixed(2)}%</td>
+              </tr>
+            ))}
+            {backtests.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-3 text-slate-500">
+                  No backtests yet.
                 </td>
               </tr>
             ) : null}

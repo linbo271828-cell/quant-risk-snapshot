@@ -1,3 +1,41 @@
+# PROMPT_LOG
+
+## Project: Portfolio Detective + Quant Extensions
+
+## Major prompts used
+
+1. **"Implement Portfolio Detective with SEC ingestion and ranked likely drivers first, then add QP and backtesting."**
+   - Result: built MVP-first flow with `Event`, `EventImpact`, `DetectiveReport`, `DetectiveReportItem`, and detective APIs/UI.
+
+2. **"Use existing auth + ownership patterns; keep all new APIs user-scoped and return 404 for non-owners."**
+   - Result: every new route mirrors existing snapshot/portfolio ownership checks.
+
+3. **"Replace clipping heuristic with a real constrained QP solver."**
+   - Result: added `lib/qp.ts` using `quadprog-js` and routed min-variance through QP constraints (`sum=1`, `w>=0`, optional `maxWeight`).
+
+4. **"Add periodic rebalancing backtests with transaction costs and persisted reports."**
+   - Result: added `BacktestRun` model + `lib/backtest.ts`, run/list/detail APIs, and `/backtests/[backtestId]` page.
+
+## Design decisions and what changed
+
+- **MVP rule-based detective scoring first** (`recency + |post1dAbRet| + contribution + eventTypeWeight`) to guarantee deterministic end-to-end behavior before ML.
+- **SEC-first event ingestion** with descriptive `User-Agent`, retries, and pacing to keep ingestion robust without paid APIs.
+- **Portfolio-scoped events** (`portfolioId` on `Event`) to simplify privacy and ownership checks in this assignment context.
+- **JSON payload persistence** (`summaryJson`, `metricsJson`, `seriesJson`, `weightsJson`) to ship quickly while preserving room for stricter typed columns later.
+- **Minimal frontend churn** by extending existing `/portfolios/[id]` runner/list patterns instead of introducing a new data layer.
+
+## Implementation notes learned
+
+- Reusing aligned price infrastructure (`lib/marketData.ts`) reduced duplicate bugs in detective and backtest computations.
+- Keeping API response structures close to existing snapshot payloads made client integration much faster.
+- Running `prisma generate` and `tsc --noEmit` after each large phase helped catch path/type issues early.
+
+## Follow-up backlog
+
+- Add Fama-French factor exposure module (data ingestion + regression UI/API).
+- Extend alerts/watchlist with event/intraday/factor triggers and optional scheduling.
+- Add intraday data fetch + intraday move analytics.
+- Add export routes for detective/backtests and optional ML training/scoring pipeline.
 # Prompt Log
 
 A record of the key AI prompts used during development of the Quant Risk Snapshot app. All prompts were given to Claude (via Cursor IDE). Outputs were reviewed, tested, and edited by me.

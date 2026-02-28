@@ -103,6 +103,7 @@ export default function RebalancePage() {
   const [objective, setObjective] = useState<RebalanceObjective>("min-variance");
   const [gamma, setGamma] = useState(1);
   const [maxWeight, setMaxWeight] = useState("");
+  const [useQpConstraints, setUseQpConstraints] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -144,7 +145,10 @@ export default function RebalancePage() {
 
     const mw = maxWeight ? Number.parseFloat(maxWeight) : undefined;
     const validMw = mw != null && Number.isFinite(mw) && mw > 0 && mw <= 1 ? mw : undefined;
-    const targetWeights = objective === "min-variance" ? minVarianceWeights(cov, validMw) : riskParityWeights(cov, validMw);
+    const targetWeights =
+      objective === "min-variance"
+        ? minVarianceWeights(cov, validMw, useQpConstraints)
+        : riskParityWeights(cov, validMw);
     const finalWeights = blendWeights(currentWeights, targetWeights, gamma);
     const turnover = estimatedTurnover(currentWeights, finalWeights);
     const currentVol = portfolioVol(currentWeights, cov) * Math.sqrt(252);
@@ -161,7 +165,7 @@ export default function RebalancePage() {
     }));
 
     return { tickers, rows, turnover, currentVol, targetVol, finalVol, cashLeftover: tradesResult?.cashLeftover, isSharesMode: input.mode === "shares" };
-  }, [input, prices, objective, gamma, maxWeight]);
+  }, [input, prices, objective, gamma, maxWeight, useQpConstraints]);
 
   function downloadTradesCsv() {
     if (!result || "error" in result) return;
@@ -261,6 +265,14 @@ export default function RebalancePage() {
             <span className="text-xs font-medium text-slate-500">Max weight per stock (optional)</span>
             <input type="number" step="0.01" min="0" max="1" value={maxWeight} onChange={(e) => setMaxWeight(e.target.value)} placeholder="e.g. 0.4 = 40% max" className="mt-1 block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
             <p className="mt-1 text-[11px] text-slate-400">Caps any single stock at this percentage. Leave blank for no cap.</p>
+            <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={useQpConstraints}
+                onChange={(e) => setUseQpConstraints(e.target.checked)}
+              />
+              Use QP constraints
+            </label>
           </label>
         </div>
       </div>
@@ -332,7 +344,7 @@ export default function RebalancePage() {
 
       <p className="mt-3 text-xs text-slate-400">
         {objective === "min-variance"
-          ? "Min-variance uses a long-only heuristic (negative weights are clipped to zero). A proper quadratic programming solver would be more precise."
+          ? "Min-variance can use a constrained quadratic programming (QP) solve for long-only and max-weight bounds."
           : "Risk parity uses an iterative algorithm (200 steps) to equalize risk contributions across all assets."}
         {" "}These are suggestions based on historical data and should not be taken as financial advice.
       </p>

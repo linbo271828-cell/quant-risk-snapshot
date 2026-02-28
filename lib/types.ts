@@ -147,3 +147,135 @@ export type AlertRule = {
   threshold: number;
   createdAt: string;
 };
+
+export type DetectiveRunInput = {
+  analyzeDate: string;
+  benchmark: string;
+  eventWindowDays: number;
+  maxTickers: number;
+};
+
+export type DetectiveReportSummary = {
+  id: string;
+  portfolioId: string;
+  createdAt: string;
+  analyzeDate: string;
+  benchmark: string;
+  portfolioReturn: number;
+  abnormalReturn: number;
+};
+
+export type DetectiveDriver = {
+  ticker: string;
+  weight: number;
+  tickerReturn: number;
+  contribution: number;
+};
+
+export type DetectiveEventItem = {
+  id: string;
+  ticker: string;
+  score: number;
+  explanation: {
+    recencyDays: number;
+    abret1d: number;
+    contribution: number;
+    eventType: string;
+  };
+  event: {
+    id: string;
+    type: string;
+    eventTime: string;
+    title: string;
+    url: string;
+    source: string;
+  };
+  reaction: {
+    post1dAbRet: number | null;
+    post3dAbRet: number | null;
+    post5dAbRet: number | null;
+    computedAt: string | null;
+  };
+};
+
+export type DetectiveReportDetail = {
+  id: string;
+  portfolioId: string;
+  portfolioName: string;
+  createdAt: string;
+  analyzeDate: string;
+  benchmark: string;
+  summary: {
+    portfolioReturn: number;
+    benchmarkReturn: number;
+    abnormalReturn: number;
+    topDrivers: DetectiveDriver[];
+    contextWindow: {
+      dates: string[];
+      benchmarkPrices: number[];
+    } | null;
+  };
+  items: DetectiveEventItem[];
+};
+
+export type BacktestFrequency = "WEEKLY" | "MONTHLY";
+export type BacktestStrategy = "BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP";
+
+export type BacktestRunInput = {
+  start: string;
+  end: string;
+  benchmark: string;
+  frequency: BacktestFrequency;
+  strategy: BacktestStrategy;
+  costBps?: number;
+  maxWeight?: number;
+  shrinkage?: boolean;
+};
+
+export type BacktestRunSummary = {
+  id: string;
+  portfolioId: string;
+  createdAt: string;
+  startDate: string;
+  endDate: string;
+  benchmark: string;
+  frequency: BacktestFrequency;
+  strategy: BacktestStrategy;
+  totalReturn: number;
+  cagr: number;
+  volAnn: number;
+  sharpe: number;
+  maxDD: number;
+};
+
+export type BacktestMetrics = {
+  totalReturn: number;
+  cagr: number;
+  volAnn: number;
+  sharpe: number;
+  maxDD: number;
+  turnover: number;
+  avgRebalanceCost: number;
+};
+
+export type BacktestSeries = {
+  dates: string[];
+  equity: number[];
+  drawdown: number[];
+  returns: Array<number | null>;
+};
+
+export type BacktestRunDetail = {
+  id: string;
+  portfolioId: string;
+  createdAt: string;
+  startDate: string;
+  endDate: string;
+  benchmark: string;
+  frequency: BacktestFrequency;
+  strategy: BacktestStrategy;
+  params: Record<string, unknown>;
+  metrics: BacktestMetrics;
+  series: BacktestSeries;
+  weights: Array<{ date: string; weights: Record<string, number> }>;
+};
