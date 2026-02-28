@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import DisclosureHelp from "../../../../../components/DisclosureHelp";
 import LineChartCard from "../../../../../components/LineChartCard";
 import MetricCard from "../../../../../components/MetricCard";
 import type { DetectiveReportDetail } from "../../../../../lib/types";
@@ -70,6 +71,18 @@ export default function DetectiveReportPage({ params }: { params: { reportId: st
         <MetricCard label="Benchmark Return" value={pct(report.summary.benchmarkReturn)} />
         <MetricCard label="Abnormal Return" value={pct(report.summary.abnormalReturn)} />
       </div>
+
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+        <strong>Key takeaway:</strong>{" "}
+        {Math.abs(report.summary.abnormalReturn) >= 0.02
+          ? "Abnormal move is material. Focus on top-ranked events and confirm timing/reaction consistency."
+          : "Abnormal move is modest. Ranked events may be weak signals; treat attribution as directional, not definitive."}
+      </div>
+
+      <DisclosureHelp title="How detective scoring works">
+        Scores combine recency, event reaction abnormal return, contribution magnitude, and event type weighting. Higher
+        score means the event is more likely to explain the observed portfolio move, not that causality is proven.
+      </DisclosureHelp>
 
       {contextData.length > 0 ? (
         <LineChartCard
@@ -145,6 +158,9 @@ export default function DetectiveReportPage({ params }: { params: { reportId: st
           ) : null}
         </div>
       </section>
+      <p className="disclaimer">
+        Event attribution is probabilistic and should be used as research support, not as a trading recommendation.
+      </p>
     </main>
   );
 }

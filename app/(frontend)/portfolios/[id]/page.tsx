@@ -10,6 +10,10 @@ import type {
   SnapshotSummary,
 } from "../../../../lib/types";
 import MetricCard from "../../../../components/MetricCard";
+import NextStepsPanel from "../../../../components/NextStepsPanel";
+import DisclosureHelp from "../../../../components/DisclosureHelp";
+import { getPortfolioNextSteps } from "../../../../lib/uxSuggestions";
+import { trackEvent } from "../../../../lib/telemetry";
 
 type SnapshotConfig = {
   range: string;
@@ -43,6 +47,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
   const [detectiveReports, setDetectiveReports] = useState<DetectiveReportSummary[]>([]);
   const [backtests, setBacktests] = useState<BacktestRunSummary[]>([]);
+  const [hasEvents, setHasEvents] = useState(false);
   const [config, setConfig] = useState<SnapshotConfig>({
     range: "1y",
     benchmark: "SPY",
@@ -79,19 +84,21 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
     setLoading(true);
     setError("");
     try {
-      const [portfolioRes, snapshotsRes, alertsRes, detectiveRes, backtestsRes] = await Promise.all([
+      const [portfolioRes, snapshotsRes, alertsRes, detectiveRes, backtestsRes, eventsRes] = await Promise.all([
         fetch(`/api/portfolios/${id}`),
         fetch(`/api/portfolios/${id}/snapshots`),
         fetch(`/api/portfolios/${id}/alerts`),
         fetch(`/api/portfolios/${id}/detective/reports`),
         fetch(`/api/portfolios/${id}/backtests`),
+        fetch(`/api/portfolios/${id}/events?limit=1`),
       ]);
       if (
         portfolioRes.status === 401 ||
         snapshotsRes.status === 401 ||
         alertsRes.status === 401 ||
         detectiveRes.status === 401 ||
-        backtestsRes.status === 401
+        backtestsRes.status === 401 ||
+        eventsRes.status === 401
       ) {
         window.location.href = "/auth/signin?callbackUrl=" + encodeURIComponent("/portfolios/" + id);
         return;
@@ -101,6 +108,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       const alertsData = await alertsRes.json();
       const detectiveData = await detectiveRes.json();
       const backtestsData = await backtestsRes.json();
+      const eventsData = await eventsRes.json();
       if (!portfolioRes.ok) throw new Error(portfolioData?.error ?? "Failed to load portfolio.");
       setPortfolio(portfolioData as PortfolioDetail);
       setConfig((portfolioData as PortfolioDetail).defaults);
@@ -108,6 +116,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       setAlerts(alertsRes.ok && Array.isArray(alertsData) ? (alertsData as AlertRule[]) : []);
       setDetectiveReports(detectiveRes.ok && Array.isArray(detectiveData) ? (detectiveData as DetectiveReportSummary[]) : []);
       setBacktests(backtestsRes.ok && Array.isArray(backtestsData) ? (backtestsData as BacktestRunSummary[]) : []);
+      setHasEvents(Boolean(eventsRes.ok && Array.isArray(eventsData?.items) && eventsData.items.length > 0));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load portfolio.");
     } finally {
@@ -165,6 +174,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Failed to sync events.");
+      trackEvent("portfolio_sync_events", { portfolioId: id });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sync events.");
@@ -184,6 +194,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Detective run failed.");
+      trackEvent("portfolio_run_detective", { portfolioId: id, benchmark: detectiveConfig.benchmark });
       await load();
       if (data?.reportId) {
         window.location.href = `/detective/reports/${data.reportId}`;
@@ -216,6 +227,11 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Backtest run failed.");
+      trackEvent("portfolio_run_backtest", {
+        portfolioId: id,
+        strategy: backtestConfig.strategy,
+        frequency: backtestConfig.frequency,
+      });
       await load();
       if (data?.backtestId) {
         window.location.href = `/backtests/${data.backtestId}`;
@@ -251,6 +267,12 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   if (!portfolio) return <div className="text-sm text-red-700">Portfolio not found.</div>;
 
   const latest = portfolio.latestSnapshot;
+  const nextSteps = getPortfolioNextSteps({
+    hasSnapshot: Boolean(latest),
+    hasEvents,
+    hasDetectiveReports: detectiveReports.length > 0,
+    hasBacktests: backtests.length > 0,
+  });
 
   return (
     <main className="space-y-6">
@@ -261,9 +283,14 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             Mode: {portfolio.mode} • Created: {new Date(portfolio.createdAt).toLocaleString()}
           </p>
         </div>
-        <Link href="/portfolios" className="text-sm font-medium text-blue-600 hover:underline">
-          Back to portfolios
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/assistant" className="text-sm font-medium text-blue-600 hover:underline">
+            Guided assistant
+          </Link>
+          <Link href="/portfolios" className="text-sm font-medium text-blue-600 hover:underline">
+            Back to portfolios
+          </Link>
+        </div>
       </div>
 
       {latest ? (
@@ -279,6 +306,13 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
           No snapshot yet. Run one below.
         </div>
       )}
+
+      <NextStepsPanel steps={nextSteps} />
+
+      <DisclosureHelp title="How to use this page effectively" defaultOpen>
+        Recommended order: 1) Run Snapshot for baseline risk, 2) Sync Events, 3) Run Detective Report for explainability,
+        4) Run monthly backtests to compare strategies, 5) Add alerts for monitoring.
+      </DisclosureHelp>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Holdings</h2>

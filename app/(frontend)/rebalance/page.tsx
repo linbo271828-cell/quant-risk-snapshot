@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronDown, ChevronUp, Download } from "lucide-react";
 import MetricCard from "../../../components/MetricCard";
+import SuggestionCard from "../../../components/SuggestionCard";
 import {
   computeReturns,
   covarianceMatrix,
@@ -20,6 +21,8 @@ import {
 } from "../../../lib/rebalance";
 import { cn } from "../../../lib/utils";
 import type { HoldingsInput, PricesResponse, RebalanceObjective, ReturnsByTicker } from "../../../lib/types";
+import { getRebalanceSuggestions } from "../../../lib/uxSuggestions";
+import { trackEvent } from "../../../lib/telemetry";
 
 const STORAGE_KEY = "quant-risk-input";
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
@@ -104,6 +107,7 @@ export default function RebalancePage() {
   const [gamma, setGamma] = useState(1);
   const [maxWeight, setMaxWeight] = useState("");
   const [useQpConstraints, setUseQpConstraints] = useState(true);
+  const [backtestStrategySuggestion, setBacktestStrategySuggestion] = useState<"BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP">("MINVAR_QP");
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -166,6 +170,8 @@ export default function RebalancePage() {
 
     return { tickers, rows, turnover, currentVol, targetVol, finalVol, cashLeftover: tradesResult?.cashLeftover, isSharesMode: input.mode === "shares" };
   }, [input, prices, objective, gamma, maxWeight, useQpConstraints]);
+
+  const suggestions = useMemo(() => getRebalanceSuggestions(input?.items.length ?? 0), [input?.items.length]);
 
   function downloadTradesCsv() {
     if (!result || "error" in result) return;
@@ -238,6 +244,30 @@ export default function RebalancePage() {
       <div className="mt-6">
         <RebalanceGuide />
       </div>
+
+      {suggestions.length > 0 ? (
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
+          {suggestions.map((s) => (
+            <SuggestionCard
+              key={s.id}
+              title={s.title}
+              reason={s.reason}
+              confidence={s.confidence}
+              actionLabel={s.actionLabel}
+              onApply={() => {
+                if (s.patch.strategy === "BUY_HOLD") setObjective("min-variance");
+                if (s.patch.strategy === "RISK_PARITY") setObjective("risk-parity");
+                if (s.patch.strategy === "MINVAR_QP") {
+                  setObjective("min-variance");
+                  setUseQpConstraints(true);
+                }
+                setBacktestStrategySuggestion(s.patch.strategy ?? "MINVAR_QP");
+                trackEvent("rebalance_apply_suggestion", { suggestionId: s.id });
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
 
       {/* Controls */}
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -348,6 +378,10 @@ export default function RebalancePage() {
           : "Risk parity uses an iterative algorithm (200 steps) to equalize risk contributions across all assets."}
         {" "}These are suggestions based on historical data and should not be taken as financial advice.
       </p>
+      <p className="mt-2 text-xs text-slate-500">
+        Suggested matching backtest strategy: <strong>{backtestStrategySuggestion}</strong>. Run it from your portfolio
+        detail page to validate this allocation style over time.
+      </p>
 
       {/* Navigation */}
       <div className="mt-8 flex gap-3">
@@ -356,6 +390,9 @@ export default function RebalancePage() {
         </Link>
         <Link href="/report" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> View report
+        </Link>
+        <Link href="/assistant" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors">
+          Open guided assistant
         </Link>
       </div>
     </div>

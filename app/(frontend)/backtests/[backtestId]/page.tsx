@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import DisclosureHelp from "../../../../components/DisclosureHelp";
 import LineChartCard from "../../../../components/LineChartCard";
 import MetricCard from "../../../../components/MetricCard";
 import type { BacktestRunDetail } from "../../../../lib/types";
@@ -73,6 +74,18 @@ export default function BacktestDetailPage({ params }: { params: { backtestId: s
         <MetricCard label="Avg Cost" value={backtest.metrics.avgRebalanceCost.toFixed(4)} />
       </div>
 
+      <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+        <strong>Key takeaway:</strong>{" "}
+        {backtest.metrics.sharpe >= 1
+          ? "Risk-adjusted performance is relatively strong in this period."
+          : "Risk-adjusted performance is limited; compare other strategies and inspect drawdown/turnover tradeoffs."}
+      </div>
+
+      <DisclosureHelp title="How to read this backtest">
+        Compare Total Return with Max Drawdown and Sharpe together. Higher return with much worse drawdown may not match
+        your risk tolerance. Turnover and avg rebalance cost indicate implementation drag.
+      </DisclosureHelp>
+
       <LineChartCard title="Equity Curve (indexed 100)" data={equityData} valueFormatter={(v) => v.toFixed(2)} />
       <LineChartCard title="Drawdown" data={drawdownData} valueFormatter={pct} />
 
@@ -102,6 +115,9 @@ export default function BacktestDetailPage({ params }: { params: { backtestId: s
           </tbody>
         </table>
       </section>
+      <p className="disclaimer">
+        Backtests use historical data and assumptions; future performance can differ materially.
+      </p>
     </main>
   );
 }

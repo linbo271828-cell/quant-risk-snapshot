@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import BarChartCard from "../../../../components/BarChartCard";
 import CorrHeatmap from "../../../../components/CorrHeatmap";
+import DisclosureHelp from "../../../../components/DisclosureHelp";
 import LineChartCard from "../../../../components/LineChartCard";
 import MetricCard from "../../../../components/MetricCard";
 import type { SnapshotDetail } from "../../../../lib/types";
@@ -78,6 +79,18 @@ export default function SnapshotDetailPage({ params }: { params: { snapshotId: s
         <MetricCard label="Neff" value={snapshot.metrics.neff.toFixed(2)} />
       </div>
 
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <strong>Key takeaway:</strong>{" "}
+        {snapshot.metrics.maxDD < -0.2
+          ? "This portfolio has seen deep drawdowns. Consider reducing concentration and comparing optimized allocations."
+          : "Risk profile looks moderate. Use detective and backtests to validate whether drivers and strategy choices align."}
+      </div>
+
+      <DisclosureHelp title="What these metrics mean">
+        Start with Vol Ann and Max DD for downside risk. Use Sharpe to compare risk-adjusted performance and use HHI/Neff
+        to understand concentration. High concentration usually means fewer names drive outcomes.
+      </DisclosureHelp>
+
       <LineChartCard title="Equity Curve (indexed 100)" data={eqData} valueFormatter={(v) => v.toFixed(2)} />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -120,6 +133,10 @@ export default function SnapshotDetailPage({ params }: { params: { snapshotId: s
       <Link href={`/portfolios/${snapshot.portfolioId}`} className="text-sm font-medium text-blue-600 hover:underline">
         Back to portfolio
       </Link>
+      <p className="disclaimer">
+        Snapshot analytics are informational and not investment advice. Validate assumptions and market conditions before
+        acting.
+      </p>
     </main>
   );
 }

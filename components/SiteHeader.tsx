@@ -6,12 +6,14 @@ import { signOut } from "next-auth/react";
 import { BarChart3 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useSession } from "next-auth/react";
+import ModeSwitch from "./ModeSwitch";
 
 const NAV_ITEMS = [
   { href: "/portfolios", label: "Portfolios" },
   { href: "/", label: "Input" },
   { href: "/report", label: "Report" },
   { href: "/rebalance", label: "Rebalance" },
+  { href: "/assistant", label: "Assistant" },
 ];
 
 export default function SiteHeader() {
@@ -61,6 +63,7 @@ export default function SiteHeader() {
               Sign in
             </Link>
           )}
+          <ModeSwitch />
         </nav>
       </div>
     </header>

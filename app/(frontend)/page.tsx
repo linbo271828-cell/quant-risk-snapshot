@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, HelpCircle, Info, Loader2, Sparkles } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { HoldingsInput, HoldingsItem } from "../../lib/types";
+import SuggestionCard from "../../components/SuggestionCard";
+import DisclosureHelp from "../../components/DisclosureHelp";
+import { getInputSuggestions } from "../../lib/uxSuggestions";
+import { trackEvent } from "../../lib/telemetry";
 
 const STORAGE_KEY = "quant-risk-input";
 
@@ -34,6 +38,7 @@ export default function HomePage() {
   const [shrinkage, setShrinkage] = useState("0.1");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -52,8 +57,28 @@ export default function HomePage() {
     }
   }, []);
 
+  useEffect(() => {
+    const seen = localStorage.getItem("qrs-onboarding-seen");
+    setShowOnboarding(seen !== "1");
+  }, []);
+
   const parsedHoldings = useMemo(() => parseHoldings(rawHoldings), [rawHoldings]);
   const isValid = parsedHoldings.length > 0;
+  const suggestions = useMemo(
+    () =>
+      getInputSuggestions(
+        {
+          mode,
+          items: parsedHoldings,
+          range,
+          benchmark,
+          riskFreeRate: Number.parseFloat(riskFreeRate) || 0,
+          shrinkage: shrinkageEnabled ? Number.parseFloat(shrinkage) || 0 : undefined,
+        },
+        parsedHoldings.length,
+      ),
+    [mode, parsedHoldings, range, benchmark, riskFreeRate, shrinkageEnabled, shrinkage],
+  );
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,6 +96,7 @@ export default function HomePage() {
       shrinkage: shrinkageEnabled ? Number.parseFloat(shrinkage) || 0 : undefined,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    trackEvent("input_submit", { mode, holdings: parsedHoldings.length, range, benchmark: payload.benchmark ?? "SPY" });
     setSubmitting(true);
     router.push("/report");
   }
@@ -89,6 +115,49 @@ export default function HomePage() {
           Data source: Yahoo Finance (free, no API key needed)
         </span>
       </div>
+
+      {showOnboarding ? (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          First time here? Start with 3-5 tickers, keep defaults, and click Generate Report. Then use Rebalance
+          or Assistant for suggested next actions.
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.setItem("qrs-onboarding-seen", "1");
+              setShowOnboarding(false);
+            }}
+            className="ml-3 rounded bg-white px-2 py-1 text-xs font-semibold text-blue-700"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="section-title">Suggested setup</h2>
+          <p className="section-subtitle">Apply these defaults to get a stable first analysis.</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {suggestions.map((s) => (
+              <SuggestionCard
+                key={s.id}
+                title={s.title}
+                reason={s.reason}
+                confidence={s.confidence}
+                actionLabel={s.actionLabel}
+                onApply={() => {
+                  if (s.patch.benchmark) setBenchmark(s.patch.benchmark);
+                  if (s.patch.range) setRange(s.patch.range);
+                  if (s.patch.riskFreeRate != null) setRiskFreeRate(String(s.patch.riskFreeRate));
+                  if (s.patch.shrinkageEnabled != null) setShrinkageEnabled(s.patch.shrinkageEnabled);
+                  if (s.patch.shrinkage != null) setShrinkage(String(s.patch.shrinkage));
+                  trackEvent("input_apply_suggestion", { suggestionId: s.id });
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <form onSubmit={onSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">
@@ -317,6 +386,11 @@ export default function HomePage() {
                 </li>
               </ol>
             </div>
+
+            <DisclosureHelp title="Why these defaults?" defaultOpen>
+              For most users, `SPY + 1y` offers a good balance of stability and recency. A non-zero risk-free rate
+              keeps Sharpe interpretation realistic, and shrinkage helps when you have many holdings.
+            </DisclosureHelp>
 
             {/* Formatting tips */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

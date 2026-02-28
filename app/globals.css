@@ -3,8 +3,48 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --app-bg: 248 250 252;
+    --card-bg: 255 255 255;
+    --border: 226 232 240;
+    --text-strong: 15 23 42;
+    --text-muted: 100 116 139;
+    --focus: 59 130 246;
+  }
+
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  *:focus-visible {
+    outline: 2px solid rgb(var(--focus));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card-surface {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-slate-700;
+  }
+
+  .section-subtitle {
+    @apply mt-1 text-xs leading-relaxed text-slate-500;
+  }
+
+  .field-label {
+    @apply text-xs font-medium text-slate-500;
+  }
+
+  .field-help {
+    @apply mt-1 text-[11px] leading-relaxed text-slate-400;
+  }
+
+  .disclaimer {
+    @apply rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800;
   }
 }

@@ -5,8 +5,12 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Download, FileJson } from "lucide-react";
 import BarChartCard from "../../../components/BarChartCard";
 import CorrHeatmap from "../../../components/CorrHeatmap";
+import DisclosureHelp from "../../../components/DisclosureHelp";
 import LineChartCard from "../../../components/LineChartCard";
 import MetricCard from "../../../components/MetricCard";
+import TerminologyToggle from "../../../components/TerminologyToggle";
+import EmptyStateCard from "../../../components/EmptyStateCard";
+import { trackEvent } from "../../../lib/telemetry";
 import {
   annualizedReturn,
   annualizedVolatility,
@@ -168,6 +172,7 @@ export default function ReportPage() {
       .then(async (res) => { const d = await res.json(); if (!res.ok) throw new Error(d?.error ?? "Failed to fetch."); return d as PricesResponse; })
       .then((data) => {
         setPrices(data);
+        trackEvent("report_prices_loaded", { tickerCount: tickers.length, range: input.range });
         if (data.errors) setError(`Some tickers failed: ${Object.entries(data.errors).map(([t, m]) => `${t}: ${m}`).join("; ")}`);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to fetch prices."))
@@ -252,12 +257,12 @@ export default function ReportPage() {
   /* Empty */
   if (!input) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="rounded-full bg-slate-100 p-4 mb-4"><ArrowLeft className="h-6 w-6 text-slate-400" /></div>
-        <h2 className="text-lg font-semibold text-slate-700">No portfolio loaded</h2>
-        <p className="mt-1 max-w-sm text-sm text-slate-400">You need to enter your stocks on the Input page first, then click &quot;Generate Report&quot; to see your analysis here.</p>
-        <Link href="/" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"><ArrowLeft className="h-3.5 w-3.5" /> Go to Input</Link>
-      </div>
+      <EmptyStateCard
+        title="No portfolio loaded"
+        description="Enter holdings on Input and generate your first report."
+        ctaLabel="Go to Input"
+        ctaHref="/"
+      />
     );
   }
 
@@ -307,6 +312,7 @@ export default function ReportPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <TerminologyToggle />
           <button onClick={downloadJson} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors">
             <FileJson className="h-3.5 w-3.5" /> JSON
           </button>
@@ -322,6 +328,13 @@ export default function ReportPage() {
       {/* Guide */}
       <div className="mt-6">
         <ReportGuide />
+      </div>
+
+      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <strong>Key takeaway:</strong>{" "}
+        {report.metrics.maxDrawdown < -0.2
+          ? "Your portfolio has experienced a deep drawdown; consider diversification or lower-volatility allocations."
+          : "Drawdown is currently moderate; compare strategy alternatives in Rebalance for risk-adjusted improvements."}
       </div>
 
       {/* Metrics */}
@@ -355,6 +368,11 @@ export default function ReportPage() {
         </SectionDesc>
         <LineChartCard title="Equity curve (indexed to $100)" data={report.charts.equityData} valueFormatter={(v) => `$${v.toFixed(1)}`} />
       </div>
+
+      <DisclosureHelp title="How to interpret this report quickly">
+        Start with Max Drawdown and Sharpe for risk-adjusted quality, then inspect Risk Contributions to identify
+        concentration drivers. If one or two names dominate risk, test alternatives in Rebalance and compare in Backtests.
+      </DisclosureHelp>
 
       {/* Drawdown + Rolling vol */}
       <div className="mt-6">
@@ -432,7 +450,14 @@ export default function ReportPage() {
         <Link href="/rebalance" className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors">
           Optimize portfolio <ArrowRight className="h-3.5 w-3.5" />
         </Link>
+        <Link href="/assistant" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+          Open guided assistant
+        </Link>
       </div>
+      <p className="mt-4 disclaimer">
+        This report is educational analytics only and not investment advice. Validate assumptions and data quality before
+        making financial decisions.
+      </p>
     </div>
   );
 }

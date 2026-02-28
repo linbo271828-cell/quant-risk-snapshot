@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { HoldingsItem } from "../../../../lib/types";
+import SuggestionCard from "../../../../components/SuggestionCard";
+import DisclosureHelp from "../../../../components/DisclosureHelp";
 
 const TICKER_RE = /^[A-Z.\-]{1,12}$/;
 
@@ -75,6 +77,28 @@ export default function NewPortfolioPage() {
     <main className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold text-slate-900">New Portfolio</h1>
       <p className="mt-1 text-sm text-slate-500">Create a saved portfolio to run persistent risk snapshots.</p>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <SuggestionCard
+          title="Use SPY as benchmark"
+          reason="SPY gives a broad-market reference for beta and abnormal performance interpretation."
+          confidence="high"
+          actionLabel="Apply SPY"
+          onApply={() => setBenchmark("SPY")}
+        />
+        <SuggestionCard
+          title="Start with 1y lookback"
+          reason="One year is usually a stable baseline for first-time reports and rebalancing decisions."
+          confidence="high"
+          actionLabel="Apply 1y"
+          onApply={() => setRange("1y")}
+        />
+      </div>
+
+      <DisclosureHelp title="Beginner default workflow" className="mt-4" defaultOpen>
+        Create portfolio with 3-6 holdings, run a snapshot first, then sync events and run detective report. After that,
+        compare monthly backtests for Buy & Hold, Risk Parity, and Min-Variance (QP).
+      </DisclosureHelp>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <label className="block">

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { PortfolioListItem } from "../../../lib/types";
+import EmptyStateCard from "../../../components/EmptyStateCard";
+import DisclosureHelp from "../../../components/DisclosureHelp";
 
 const pct = (v: number | null) => (v == null ? "-" : `${(v * 100).toFixed(2)}%`);
 
@@ -54,6 +56,11 @@ export default function PortfoliosPage() {
       {loading ? <div className="text-sm text-slate-500">Loading...</div> : null}
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
+      <DisclosureHelp title="What can I do on this page?" className="mb-4">
+        Use this page as your home base for persistent workflows. Open any portfolio to run snapshots, sync events,
+        generate detective reports, and run backtests. If you are new, start by creating one sample portfolio.
+      </DisclosureHelp>
+
       {!loading && !error ? (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
@@ -84,8 +91,13 @@ export default function PortfoliosPage() {
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                    No portfolios yet. Create your first one.
+                  <td colSpan={5} className="px-4 py-6">
+                    <EmptyStateCard
+                      title="No portfolios yet"
+                      description="Create your first portfolio to unlock snapshots, detective reports, and backtests."
+                      ctaLabel="Create Portfolio"
+                      ctaHref="/portfolios/new"
+                    />
                   </td>
                 </tr>
               ) : null}
