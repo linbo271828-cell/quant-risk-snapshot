@@ -29,24 +29,27 @@ export default function SiteHeader() {
           <span className="sm:hidden">QRS</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+        <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <ModeSwitch />
           {session ? (
             <button
               type="button"
@@ -63,8 +66,7 @@ export default function SiteHeader() {
               Sign in
             </Link>
           )}
-          <ModeSwitch />
-        </nav>
+        </div>
       </div>
     </header>
   );
