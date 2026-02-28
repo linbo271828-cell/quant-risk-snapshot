@@ -216,6 +216,18 @@ Gamma slider ranges from 0 (keep current) to 1 (full rebalance).
 
 The codebase is organized so **frontend** (pages, UI) and **backend** (API routes) are clearly separated.
 
+### Cleanup Program (2026)
+
+- Feature-oriented backend slices now live in `features/`.
+- Shared auth/ownership guards and API error helpers live in `features/shared/`.
+- Route-specific frontend hooks/components are colocated near their pages.
+- Repo standards and architecture notes were consolidated into `docs/`.
+
+See:
+- `docs/architecture.md`
+- `docs/repository-conventions.md`
+- `docs/cleanup-checklist.md`
+
 ### Frontend (UI and pages)
 
 - **`app/(frontend)/`** — All user-facing routes (Next.js route group; URLs are unchanged).

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../../../lib/auth";
-import { db } from "../../../../../../lib/db";
+import { db } from "@/lib/db";
+import { requirePortfolioOwnership, requireUserId } from "@/features/shared/access";
+import { asErrorPayload } from "@/features/shared/errors";
 
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -8,15 +9,9 @@ function toNumberOrNull(value: unknown): number | null {
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const portfolioId = params.id;
-    const portfolio = await db.portfolio.findUnique({ where: { id: portfolioId }, select: { userId: true } });
-    if (!portfolio || portfolio.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
+    await requirePortfolioOwnership(portfolioId, userId);
     const [rules, latest] = await Promise.all([
       db.alertRule.findMany({ where: { portfolioId }, orderBy: { createdAt: "desc" } }),
       db.snapshot.findFirst({
@@ -55,7 +50,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
       triggered,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }

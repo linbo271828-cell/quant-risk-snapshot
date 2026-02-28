@@ -2,26 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { HoldingsItem } from "../../../../lib/types";
+import { parseHoldingsText } from "../../../../lib/holdings";
 import SuggestionCard from "../../../../components/SuggestionCard";
 import DisclosureHelp from "../../../../components/DisclosureHelp";
-
-const TICKER_RE = /^[A-Z.\-]{1,12}$/;
-
-function parseHoldings(raw: string): HoldingsItem[] {
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [tickerRaw, valueRaw] = line.split(/[, \t]+/).filter(Boolean);
-      const ticker = (tickerRaw ?? "").toUpperCase();
-      const value = Number(valueRaw);
-      if (!TICKER_RE.test(ticker) || !Number.isFinite(value) || value <= 0) return null;
-      return { ticker, value };
-    })
-    .filter((x): x is HoldingsItem => x != null);
-}
 
 export default function NewPortfolioPage() {
   const router = useRouter();
@@ -35,7 +18,7 @@ export default function NewPortfolioPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const holdings = useMemo(() => parseHoldings(holdingsText), [holdingsText]);
+  const holdings = useMemo(() => parseHoldingsText(holdingsText, true), [holdingsText]);
   const canSubmit = name.trim().length > 0 && holdings.length > 0;
 
   async function onSubmit(e: React.FormEvent) {

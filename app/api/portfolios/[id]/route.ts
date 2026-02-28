@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../lib/auth";
-import { db } from "../../../../lib/db";
-import type { SnapshotDefaults } from "../../../../lib/types";
-
-const TICKER_RE = /^[A-Z.\-]{1,12}$/;
+import { db } from "@/lib/db";
+import type { SnapshotDefaults } from "@/lib/types";
+import { requirePortfolioOwnership, requireUserId } from "@/features/shared/access";
+import { asErrorPayload } from "@/features/shared/errors";
+import { validateHoldings } from "@/features/portfolio/service";
 
 type PatchPortfolioBody = {
   name?: string;
@@ -11,23 +11,11 @@ type PatchPortfolioBody = {
   defaults?: Partial<SnapshotDefaults>;
 };
 
-function validateHoldings(holdings: Array<{ ticker: string; value: number }>): string | null {
-  if (!Array.isArray(holdings) || holdings.length === 0) return "At least one holding is required.";
-  for (const h of holdings) {
-    const t = h.ticker?.toUpperCase().trim();
-    if (!TICKER_RE.test(t)) return `Invalid ticker: ${h.ticker}`;
-    if (!Number.isFinite(h.value) || h.value <= 0) return `Holding value must be > 0 for ${h.ticker}`;
-  }
-  return null;
-}
-
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const id = params.id;
+    await requirePortfolioOwnership(id, userId);
     const p = await db.portfolio.findUnique({
       where: { id },
       include: {
@@ -36,9 +24,6 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       },
     });
     if (!p) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    if (p.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
 
     const latest = p.snapshots[0] ?? null;
     const metrics = latest?.metricsJson as Record<string, unknown> | undefined;
@@ -70,17 +55,14 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       latestSnapshot,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const id = params.id;
     const body = (await request.json()) as PatchPortfolioBody;
     const updateData: Record<string, unknown> = {};
@@ -100,7 +82,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     await db.$transaction(async (tx) => {
       const exists = await tx.portfolio.findUnique({ where: { id } });
       if (!exists) throw new Error("Portfolio not found.");
-      if (exists.userId !== session.user.id) throw new Error("Portfolio not found.");
+      if (exists.userId !== userId) throw new Error("Portfolio not found.");
       await tx.portfolio.update({ where: { id }, data: updateData });
 
       if (body.holdings != null) {
@@ -119,29 +101,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    const status = msg.includes("not found") ? 404 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status >= 500 ? 400 : payload.status });
   }
 }
 
 export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const id = params.id;
     const p = await db.portfolio.findUnique({ where: { id } });
     if (!p) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    if (p.userId !== session.user.id) {
+    if (p.userId !== userId) {
       return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
     }
     await db.portfolio.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    const status = msg.includes("Record to delete does not exist") ? 404 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }

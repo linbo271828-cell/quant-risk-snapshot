@@ -20,12 +20,12 @@ import {
   riskParityWeights,
 } from "../../../lib/rebalance";
 import { cn } from "../../../lib/utils";
-import type { HoldingsInput, PricesResponse, RebalanceObjective, ReturnsByTicker } from "../../../lib/types";
+import type { PricesResponse, RebalanceObjective, ReturnsByTicker } from "../../../lib/types";
 import { getRebalanceSuggestions } from "../../../lib/uxSuggestions";
 import { trackEvent } from "../../../lib/telemetry";
 import { useUxMode } from "../../../lib/useUxMode";
+import { useStoredPortfolioInput } from "../_hooks/useStoredPortfolioInput";
 
-const STORAGE_KEY = "quant-risk-input";
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
 
 function Skeleton({ className }: { className?: string }) {
@@ -100,7 +100,7 @@ function RebalanceGuide() {
 
 export default function RebalancePage() {
   const uxMode = useUxMode();
-  const [input, setInput] = useState<HoldingsInput | null>(null);
+  const { input, storageError } = useStoredPortfolioInput();
   const [prices, setPrices] = useState<PricesResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -112,10 +112,8 @@ export default function RebalancePage() {
   const [backtestStrategySuggestion, setBacktestStrategySuggestion] = useState<"BUY_HOLD" | "RISK_PARITY" | "MINVAR_QP">("MINVAR_QP");
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-    try { setInput(JSON.parse(stored) as HoldingsInput); } catch { setError("Failed to read saved input."); }
-  }, []);
+    if (storageError) setError(storageError);
+  }, [storageError]);
 
   useEffect(() => {
     if (!input) return;

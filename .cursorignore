@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+coverage/
+.cache/
+.turbo/
+.vercel/
+.env*
+!.env.example
+!.env.sample
+*.log
+*.pid
+*.err
+*.out
+prisma/dev.db*
+.cursor/
+agent-transcripts/

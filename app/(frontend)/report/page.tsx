@@ -33,9 +33,8 @@ import {
   totalReturn,
   varCvar,
 } from "../../../lib/math";
-import type { HoldingsInput, PricesResponse, ReturnsByTicker } from "../../../lib/types";
-
-const STORAGE_KEY = "quant-risk-input";
+import type { PricesResponse, ReturnsByTicker } from "../../../lib/types";
+import { useStoredPortfolioInput } from "../_hooks/useStoredPortfolioInput";
 
 const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
 const fmtNum = (v: number) => v.toFixed(4);
@@ -152,16 +151,14 @@ function SectionDesc({ children }: { children: React.ReactNode }) {
 
 export default function ReportPage() {
   const uxMode = useUxMode();
-  const [input, setInput] = useState<HoldingsInput | null>(null);
+  const { input, storageError } = useStoredPortfolioInput();
   const [prices, setPrices] = useState<PricesResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-    try { setInput(JSON.parse(stored) as HoldingsInput); } catch { setError("Failed to read saved input."); }
-  }, []);
+    if (storageError) setError(storageError);
+  }, [storageError]);
 
   useEffect(() => {
     if (!input) return;

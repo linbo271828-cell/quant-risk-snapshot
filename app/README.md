@@ -8,3 +8,9 @@ This folder is split so **frontend** and **backend** are easy to find:
 - **`globals.css`** — Global styles.
 
 Frontend pages live under `(frontend)/` so that next to `api/` it’s clear which code is UI and which is server/API.
+
+Backend orchestration is feature-oriented under `features/`, while `app/api` stays transport-focused.
+For current conventions and architecture details, use:
+
+- `docs/architecture.md`
+- `docs/repository-conventions.md`

@@ -1,40 +1,21 @@
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../../lib/auth";
-import { db } from "../../../../../lib/db";
-import { computeSnapshot, fetchAlignedCloses } from "../../../../../lib/snapshot";
-import type { SnapshotDefaults } from "../../../../../lib/types";
+import { db } from "@/lib/db";
+import type { SnapshotDefaults } from "@/lib/types";
+import {
+  createSnapshotRecord,
+  mergeSnapshotDefaults,
+  runSnapshotForPortfolio,
+} from "@/features/snapshot/service";
+import { requirePortfolioOwnership, requireUserId } from "@/features/shared/access";
+import { asErrorPayload } from "@/features/shared/errors";
 
 type SnapshotOverrideBody = Partial<SnapshotDefaults>;
 
-function mergedDefaults(
-  stored: {
-    defaultsRange: string;
-    defaultsBenchmark: string;
-    defaultsRiskFreeRate: number;
-    defaultsShrinkage: boolean;
-  },
-  override?: SnapshotOverrideBody
-): SnapshotDefaults {
-  return {
-    range: override?.range ?? stored.defaultsRange,
-    benchmark: (override?.benchmark ?? stored.defaultsBenchmark).toUpperCase(),
-    riskFreeRate:
-      override?.riskFreeRate != null ? Number(override.riskFreeRate) : Number(stored.defaultsRiskFreeRate),
-    shrinkage: override?.shrinkage != null ? Boolean(override.shrinkage) : Boolean(stored.defaultsShrinkage),
-  };
-}
-
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const portfolioId = params.id;
-    const portfolio = await db.portfolio.findUnique({ where: { id: portfolioId }, select: { userId: true } });
-    if (!portfolio || portfolio.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
+    await requirePortfolioOwnership(portfolioId, userId);
     const snapshots = await db.snapshot.findMany({
       where: { portfolioId },
       orderBy: { createdAt: "desc" },
@@ -54,17 +35,14 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     });
     return NextResponse.json(list);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const portfolioId = params.id;
     const override = (await request.json().catch(() => ({}))) as SnapshotOverrideBody;
     const portfolio = await db.portfolio.findUnique({
@@ -72,43 +50,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
       include: { holdings: true },
     });
     if (!portfolio) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    if (portfolio.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
+    if (portfolio.userId !== userId) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
     if (portfolio.holdings.length === 0) {
       return NextResponse.json({ error: "Portfolio has no holdings." }, { status: 400 });
     }
 
-    const defaults = mergedDefaults(portfolio, override);
-    const holdTickers = portfolio.holdings.map((h) => h.ticker.toUpperCase());
-    const tickers = Array.from(new Set([...holdTickers, defaults.benchmark]));
-
-    const fetched = await fetchAlignedCloses(tickers, defaults.range);
-    const snapshot = computeSnapshot({
-      portfolioId,
-      mode: portfolio.mode as "weights" | "shares",
-      holdings: portfolio.holdings.map((h) => ({ ticker: h.ticker, value: h.value })),
-      defaults,
-      fetched,
-    });
-
-    const created = await db.snapshot.create({
-      data: {
-        portfolioId,
-        range: defaults.range,
-        benchmark: defaults.benchmark,
-        riskFreeRate: defaults.riskFreeRate,
-        shrinkage: defaults.shrinkage,
-        metricsJson: snapshot.metrics,
-        seriesJson: snapshot.series,
-        riskJson: snapshot.risk,
-        holdingsJson: snapshot.holdingsUsed,
-      },
-    });
+    const defaults = mergeSnapshotDefaults(portfolio, override);
+    const snapshot = await runSnapshotForPortfolio({ portfolio, defaults });
+    const created = await createSnapshotRecord({ portfolioId, defaults, snapshot });
 
     return NextResponse.json({ snapshotId: created.id }, { status: 201 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }

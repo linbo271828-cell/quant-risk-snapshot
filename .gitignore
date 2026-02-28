@@ -6,9 +6,9 @@ node_modules/
 out/
 
 # Environment
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
+!.env.sample
 
 # OS
 .DS_Store
@@ -23,7 +23,26 @@ Thumbs.db
 
 # Misc
 *.log
+*.pid
+*.err
+*.out
+*.swp
+*.swo
+*~
 
 # Prisma / SQLite
 prisma/dev.db
 prisma/dev.db-journal
+
+# Coverage / caches
+coverage/
+.cache/
+.turbo/
+.eslintcache
+
+# Vercel local metadata
+.vercel/
+
+# Local AI/IDE artifacts
+.cursor/
+agent-transcripts/

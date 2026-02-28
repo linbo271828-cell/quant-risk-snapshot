@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, HelpCircle, Info, Loader2, Sparkles } from "lucide-react";
 import { cn } from "../../lib/utils";
-import type { HoldingsInput, HoldingsItem } from "../../lib/types";
+import type { HoldingsInput } from "../../lib/types";
+import { parseHoldingsText } from "../../lib/holdings";
 import SuggestionCard from "../../components/SuggestionCard";
 import DisclosureHelp from "../../components/DisclosureHelp";
 import { getInputSuggestions } from "../../lib/uxSuggestions";
@@ -12,21 +13,6 @@ import { trackEvent } from "../../lib/telemetry";
 import { useUxMode } from "../../lib/useUxMode";
 
 const STORAGE_KEY = "quant-risk-input";
-
-function parseHoldings(text: string): HoldingsItem[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(/[, \t]+/).filter(Boolean);
-      const ticker = (parts[0] ?? "").toUpperCase();
-      const value = Number.parseFloat(parts[1] ?? "");
-      if (!/^[A-Z.\-]{1,12}$/.test(ticker) || !Number.isFinite(value)) return null;
-      return { ticker, value };
-    })
-    .filter((x): x is HoldingsItem => Boolean(x));
-}
 
 export default function HomePage() {
   const router = useRouter();
@@ -64,7 +50,7 @@ export default function HomePage() {
     setShowOnboarding(seen !== "1");
   }, []);
 
-  const parsedHoldings = useMemo(() => parseHoldings(rawHoldings), [rawHoldings]);
+  const parsedHoldings = useMemo(() => parseHoldingsText(rawHoldings), [rawHoldings]);
   const isValid = parsedHoldings.length > 0;
   const suggestions = useMemo(
     () =>

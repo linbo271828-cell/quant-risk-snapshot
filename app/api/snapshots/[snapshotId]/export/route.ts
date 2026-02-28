@@ -1,23 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../../lib/auth";
-import { db } from "../../../../../lib/db";
+import { requireSnapshotOwnership, requireUserId } from "@/features/shared/access";
+import { asErrorPayload } from "@/features/shared/errors";
 
 export async function GET(request: Request, { params }: { params: { snapshotId: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const snapshotId = params.snapshotId;
     const fmt = new URL(request.url).searchParams.get("fmt") ?? "json";
-    const s = await db.snapshot.findUnique({
-      where: { id: snapshotId },
-      include: { portfolio: { select: { userId: true } } },
-    });
-    if (!s) return NextResponse.json({ error: "Snapshot not found." }, { status: 404 });
-    if (s.portfolio.userId !== session.user.id) {
-      return NextResponse.json({ error: "Snapshot not found." }, { status: 404 });
-    }
+    const s = await requireSnapshotOwnership(snapshotId, userId);
 
     const detail = {
       id: s.id,
@@ -63,7 +53,7 @@ export async function GET(request: Request, { params }: { params: { snapshotId: 
       },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../../../lib/auth";
-import { db } from "../../../../../../lib/db";
-import { syncSecFilingsForTickers } from "../../../../../../lib/events";
+import { syncPortfolioEvents } from "@/features/events/service";
+import { requirePortfolioOwnership, requireUserId } from "@/features/shared/access";
+import { asErrorPayload } from "@/features/shared/errors";
 
 type SyncBody = {
   sources?: Array<"SEC" | "EARNINGS" | "NEWS">;
@@ -9,38 +9,18 @@ type SyncBody = {
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
-
+    const userId = await requireUserId();
     const portfolioId = params.id;
-    const portfolio = await db.portfolio.findUnique({
-      where: { id: portfolioId },
-      include: { holdings: true },
-    });
-    if (!portfolio || portfolio.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
-    if (portfolio.holdings.length === 0) {
-      return NextResponse.json({ error: "Portfolio has no holdings." }, { status: 400 });
-    }
+    await requirePortfolioOwnership(portfolioId, userId);
 
     const body = (await request.json().catch(() => ({}))) as SyncBody;
-    const sources = body.sources?.length ? body.sources : ["SEC"];
-    const tickers = portfolio.holdings.map((h) => h.ticker.toUpperCase());
-    const result = { inserted: 0, updated: 0, skipped: 0 };
-
-    if (sources.includes("SEC")) {
-      const sec = await syncSecFilingsForTickers(portfolioId, tickers);
-      result.inserted += sec.inserted;
-      result.updated += sec.updated;
-      result.skipped += sec.skipped;
-    }
-
-    return NextResponse.json({ ok: true, sources, ...result });
+    const sources: Array<"SEC" | "EARNINGS" | "NEWS"> = body.sources?.length
+      ? body.sources
+      : ["SEC"];
+    const result = await syncPortfolioEvents(portfolioId, sources);
+    return NextResponse.json(result);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }

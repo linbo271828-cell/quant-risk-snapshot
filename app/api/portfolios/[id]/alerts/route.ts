@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../../lib/auth";
-import { db } from "../../../../../lib/db";
-import type { AlertRuleType } from "../../../../../lib/types";
+import type { AlertRuleType } from "@/lib/types";
+import { createAlertRule, listAlertRules } from "@/features/alerts/service";
+import { requirePortfolioOwnership, requireUserId } from "@/features/shared/access";
+import { asErrorPayload } from "@/features/shared/errors";
 
 const ALERT_TYPES: AlertRuleType[] = ["vol_gt", "maxdd_lt", "var_gt"];
 
@@ -12,32 +13,19 @@ type CreateAlertBody = {
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const portfolioId = params.id;
-    const portfolio = await db.portfolio.findUnique({ where: { id: portfolioId }, select: { userId: true } });
-    if (!portfolio || portfolio.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
-    const rules = await db.alertRule.findMany({
-      where: { portfolioId },
-      orderBy: { createdAt: "desc" },
-    });
-    return NextResponse.json(rules);
+    await requirePortfolioOwnership(portfolioId, userId);
+    return NextResponse.json(await listAlertRules(portfolioId));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-    }
+    const userId = await requireUserId();
     const portfolioId = params.id;
     const body = (await request.json()) as CreateAlertBody;
 
@@ -48,23 +36,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: "Threshold must be a finite number." }, { status: 400 });
     }
 
-    const exists = await db.portfolio.findUnique({ where: { id: portfolioId } });
-    if (!exists) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    if (exists.userId !== session.user.id) {
-      return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
-    }
-
-    const created = await db.alertRule.create({
-      data: {
-        portfolioId,
-        type: body.type,
-        threshold: Number(body.threshold),
-      },
-    });
+    await requirePortfolioOwnership(portfolioId, userId);
+    const created = await createAlertRule(portfolioId, body.type, Number(body.threshold));
 
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const payload = asErrorPayload(err);
+    return NextResponse.json({ error: payload.error }, { status: payload.status });
   }
 }
