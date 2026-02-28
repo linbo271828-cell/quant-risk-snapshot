@@ -57,7 +57,8 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   if (loading) return <div className="text-sm text-slate-500">Loading...</div>;
   if (!portfolio) return <div className="text-sm text-red-700">Portfolio not found.</div>;
 
-  const latest = portfolio.latestSnapshot;
+  const currentPortfolio = portfolio;
+  const latest = currentPortfolio.latestSnapshot;
   const nextSteps = getPortfolioNextSteps({
     hasSnapshot: Boolean(latest),
     hasEvents,
@@ -71,7 +72,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   }
 
   function startEditingName() {
-    setEditNameValue(portfolio.name);
+    setEditNameValue(currentPortfolio.name);
     setIsEditingName(true);
   }
 
@@ -81,7 +82,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
   }
 
   function saveRename() {
-    if (editNameValue.trim() && editNameValue.trim() !== portfolio.name) {
+    if (editNameValue.trim() && editNameValue.trim() !== currentPortfolio.name) {
       renamePortfolio(editNameValue.trim());
     }
     setIsEditingName(false);
@@ -125,7 +126,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">{portfolio.name}</h1>
+              <h1 className="text-2xl font-bold text-slate-900">{currentPortfolio.name}</h1>
               <button
                 type="button"
                 onClick={startEditingName}
@@ -136,7 +137,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             </div>
           )}
           <p className="mt-1 text-sm text-slate-500">
-            Mode: {portfolio.mode} • Created: {new Date(portfolio.createdAt).toLocaleString()}
+            Mode: {currentPortfolio.mode} • Created: {new Date(currentPortfolio.createdAt).toLocaleString()}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -214,7 +215,7 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
             </tr>
           </thead>
           <tbody>
-            {portfolio.holdings.map((h) => (
+            {currentPortfolio.holdings.map((h) => (
               <tr key={h.ticker} className="border-b border-slate-50">
                 <td className="py-2">{h.ticker}</td>
                 <td className="py-2">{h.value}</td>
